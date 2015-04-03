@@ -8,10 +8,10 @@ s = sublime.load_settings("PyYapf.sublime-settings")
 
 class YapfCommand(sublime_plugin.TextCommand):
     def run(self, edit):
-        style = style.CreatePEP8Style()
-        style.update(s.get("config", {}))
+        mystyle = style.CreatePEP8Style()
+        mystyle.update(s.get("config", {}))
 
-        style.SetGlobalStyle(style.CreateGoogleStyle())
+        style.SetGlobalStyle(mystyle)
 
         for region in self.view.sel():
 

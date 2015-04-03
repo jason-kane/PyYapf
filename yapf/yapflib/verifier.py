@@ -49,6 +49,7 @@ def VerifyCode(code):
         normalized_code = _NormalizeCode(code)
         compile(normalized_code.encode('UTF-8'), '<string>', 'exec')
       except SyntaxError:
+	print("Error in line normalized code: \n%r" % code)
         raise InternalError(sys.exc_info()[1])
 
 
