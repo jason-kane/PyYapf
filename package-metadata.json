@@ -1,1 +1,0 @@
-{"description": "plugin for Sublime Text 2 editor to pretty python", "url": "https://github.com/jkane/SublimePyYapf", "platforms": ["*"], "version": "v0.1", "sublime_text": "*", "dependencies": []}
