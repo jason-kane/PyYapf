@@ -1,7 +1,6 @@
 import sublime, sublime_plugin
 from yapf import yapf_api
 from yapf.yapflib import style
-import sys
 
 s = sublime.load_settings("PyYapf.sublime-settings")
 

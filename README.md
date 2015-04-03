@@ -1,4 +1,4 @@
-# SublimePyYapf
+# PyYapf
 Sublime 2 plugin to run Yapf Python formatter
 
 Ok campers, gather round.
@@ -20,7 +20,7 @@ Once this has more than a half dozen runs under it's tires I'll add it to Packag
 Until then something like this should get it going:
 
 ```sh
-git clone https://github.com/jason-kane/SublimePyYapf.git
+git clone https://github.com/jason-kane/PyYapf.git
 cp -R SublimePyYapf ~/.config/sublime-text2/Packages/
 ```
 
