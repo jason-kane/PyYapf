@@ -3,19 +3,22 @@ Sublime 2 plugin to run Yapf Python formatter
 
 Ok campers, gather round.
 
-This is a Sublime Text 2 plugin for YAPF
+This is a Sublime Text 2 plugin for Yapf
 
 https://github.com/google/yapf
 
-Now for the "fun".. Yapf doesn't support the Python 2.6 that is baked into Sublime-Text 2.  So I backported it.  In doing so I broke the command line capabilities and who knows what else.
+You will need to install yapf first.  When I installed it:
+*  I did a clone of the yapf git 
+*  changed dist.utils to setuptools in the setup.py 
+*  ran sudo python ./setup.py install
 
-Yapf makes heavy use of lib2to3.  Sublime doesn't ship with lib2to3 at all and the version of lib2to3 that comes with Python 2.6 doesn't provide the capabilities that Yapf expects.  So I snagged the lib2to3 from 2.7 and crossed my fingers.
+yapf is very much in active flux so I expect they will make it pip install-able soon.
 
-For some inexplicable reason the end result actually seems to work.  I have it bound by default to ctrl-alt-f.  You can also ctrl-shift-p then "PyYapf: Reformat Python".
+I have PyYapf bound by default to ctrl-alt-f.  You can also ctrl-shift-p then "PyYapf: Reformat Python".
 
 ##Installation
 
-Once this has more than a half dozen runs under it's tires I'll add it to Package Control for easy-to-install goodness.
+I've submitted PyYapf to Package Control.  We should have simple installs soon.
 
 Until then something like this should get it going:
 
@@ -23,10 +26,14 @@ Until then something like this should get it going:
 git clone https://github.com/jason-kane/PyYapf.git
 cp -R SublimePyYapf ~/.config/sublime-text2/Packages/
 ```
+##Problems?
 
-##Sublime 2 Only!
+This makes it pretty easy to find valid python code that makes Yapf choke.  Please try to find the minimal example that causes the problem and let the Yapf folks know.  If there is something wrong with this plugin add an Issue on GitHub and I'll probably fix it.
 
-Once I get around to upgrading to Sublime 3 I'll either update this plugin or make a new one.  As much as I hacked on things I doubt it will work in Sublime 3 without help.
+
+##Sublime 2 Only (probably)
+
+Once I get around to upgrading to Sublime 3 I'll update this plugin to work with both. 
 
 ##LICENSE
 
