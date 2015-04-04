@@ -1,77 +1,82 @@
 {
-    "use_entire_file_if_no_selection": true,
-    "config": {
-      // The column limit.
-      "COLUMN_LIMIT": 79,
+      // full path and command to run yapf
+      "yapf_command": "/usr/local/bin/yapf",
 
-      // The regex for an i18n comment. The presence of this comment stops
-      // reformatting of that line, because the comments are required to be
-      // next to the string they translate.
-      "I18N_COMMENT": "",
+      "use_entire_file_if_no_selection": true,
+      
+      // yapf style options
+      "config": {
+            // The column limit.
+            "COLUMN_LIMIT": 79,
 
-      // The i18n function call names. The presence of this function stops
-      // reformattting on that line, because the string it has cannot be moved
-      // away from the i18n comment.
-      "I18N_FUNCTION_CALL": "",
+            // The regex for an i18n comment. The presence of this comment stops
+            // reformatting of that line, because the comments are required to be
+            // next to the string they translate.
+            "I18N_COMMENT": "",
 
-      // The number of columns to use for indentation.
-      "INDENT_WIDTH": 4,
+            // The i18n function call names. The presence of this function stops
+            // reformattting on that line, because the string it has cannot be moved
+            // away from the i18n comment.
+            "I18N_FUNCTION_CALL": "",
 
-      // Indent width for line continuations.
-      "CONTINUATION_INDENT_WIDTH": 4,
+            // The number of columns to use for indentation.
+            "INDENT_WIDTH": 4,
 
-      // Insert a blank line before a 'def' or 'class' immediately nested within
-      //another 'def' or 'class'.
-      //
-      // For example:
-      //
-      // class Foo:
-      //                    # <------ this blank line
-      //   def method():
-      //     ...
-      //
-      "BLANK_LINE_BEFORE_NESTED_CLASS_OR_DEF": false,
+            // Indent width for line continuations.
+            "CONTINUATION_INDENT_WIDTH": 4,
 
-      // Insert a space between the ending comma and closing bracket of a list,
-      // etc.
-      "SPACE_BETWEEN_ENDING_COMMA_AND_CLOSING_BRACKET": true,
+            // Insert a blank line before a 'def' or 'class' immediately nested within
+            //another 'def' or 'class'.
+            //
+            // For example:
+            //
+            // class Foo:
+            //                    # <------ this blank line
+            //   def method():
+            //     ...
+            //
+            "BLANK_LINE_BEFORE_NESTED_CLASS_OR_DEF": false,
 
-      // The number of spaces required before a trailing comment.
-      "SPACES_BEFORE_COMMENT": 2,
+            // Insert a space between the ending comma and closing bracket of a list,
+            // etc.
+            "SPACE_BETWEEN_ENDING_COMMA_AND_CLOSING_BRACKET": true,
 
-      // Set to True to prefer splitting before 'and' or 'or' rather than
-      // after.
-      "SPLIT_BEFORE_LOGICAL_OPERATOR": false,
+            // The number of spaces required before a trailing comment.
+            "SPACES_BEFORE_COMMENT": 2,
 
-      // Split named assignments onto individual lines.
-      "SPLIT_BEFORE_NAMED_ASSIGNS": true,
+            // Set to True to prefer splitting before 'and' or 'or' rather than
+            // after.
+            "SPLIT_BEFORE_LOGICAL_OPERATOR": false,
 
-      // The penalty for splitting the line after a unary operator.
-      "SPLIT_PENALTY_AFTER_UNARY_OPERATOR": 100,
+            // Split named assignments onto individual lines.
+            "SPLIT_BEFORE_NAMED_ASSIGNS": true,
 
-      // The penalty for characters over the column limit.
-      "SPLIT_PENALTY_EXCESS_CHARACTER": 200,
+            // The penalty for splitting the line after a unary operator.
+            "SPLIT_PENALTY_AFTER_UNARY_OPERATOR": 100,
 
-      // The penalty of splitting the line around the 'and' and 'or' operators.
-      "SPLIT_PENALTY_LOGICAL_OPERATOR": 30,
+            // The penalty for characters over the column limit.
+            "SPLIT_PENALTY_EXCESS_CHARACTER": 200,
 
-      // The penalty for not matching the splitting decision for the matching
-      // bracket tokens. For instance, if there is a newline after the opening
-      // bracket, we would tend to expect one before the closing bracket, and
-      // vice versa.
-      "SPLIT_PENALTY_MATCHING_BRACKET": 50,
+            // The penalty of splitting the line around the 'and' and 'or' operators.
+            "SPLIT_PENALTY_LOGICAL_OPERATOR": 30,
 
-      // The penalty for splitting right after the opening bracket.
-      "SPLIT_PENALTY_AFTER_OPENING_BRACKET": 30,
+            // The penalty for not matching the splitting decision for the matching
+            // bracket tokens. For instance, if there is a newline after the opening
+            // bracket, we would tend to expect one before the closing bracket, and
+            // vice versa.
+            "SPLIT_PENALTY_MATCHING_BRACKET": 50,
 
-      // The penalty incurred by adding a line split to the unwrapped line. The
-      // more line splits added the higher the penalty.
-      "SPLIT_PENALTY_FOR_ADDED_LINE_SPLIT": 30,
+            // The penalty for splitting right after the opening bracket.
+            "SPLIT_PENALTY_AFTER_OPENING_BRACKET": 30,
 
-      // Use tabs in the resulting file.
-      "USE_TAB": false,
+            // The penalty incurred by adding a line split to the unwrapped line. The
+            // more line splits added the higher the penalty.
+            "SPLIT_PENALTY_FOR_ADDED_LINE_SPLIT": 30,
 
-      // The number of columns used for tab stops.
-      "TAB_WIDTH": 8
-    }
+            // Use tabs in the resulting file.
+            "USE_TAB": false,
+
+            // The number of columns used for tab stops.
+            "TAB_WIDTH": 8
+      }
 }

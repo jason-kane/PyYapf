@@ -36,26 +36,31 @@ class YapfCommand(sublime_plugin.TextCommand):
         settings = sublime.load_settings("PyYapf.sublime-settings")
 
         for region in self.view.sel():
-            if region.empty() and settings.get(
-                "use_entire_file_if_no_selection", True):
-                selection = sublime.Region(0, self.view.size())
+            if region.empty():
+                if settings.get("use_entire_file_if_no_selection", True):
+                    selection = sublime.Region(0, self.view.size())
+                else:
+                    sublime.error_message('A selection is required')
+                    selection = None
             else:
                 selection = region
 
-            style = self.make_style(settings.get("config", {}))
-            cmd = ['/usr/local/bin/yapf', "--style={0}".format(style),
-                   "--verify"]
+            if selection:
+                style = self.make_style(settings.get("config", {}))
+                yapf = settings.get("yapf_command", "/usr/local/bin/yapf")
+                cmd = [yapf, "--style={0}".format(style), "--verify"]
 
-            print('Running {0}'.format(cmd))
-            proc = subprocess.Popen(cmd,
-                                    stdin=subprocess.PIPE,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE)
-            output, output_err = proc.communicate(self.view.substr(selection))
+                print('Running {0}'.format(cmd))
+                proc = subprocess.Popen(cmd,
+                                        stdin=subprocess.PIPE,
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE)
+                output, output_err = proc.communicate(
+                    self.view.substr(selection))
 
-            if output_err == "":
-                self.view.replace(edit, selection, output)
-            else:
-                sublime.error_message(output_err)
+                if output_err == "":
+                    self.view.replace(edit, selection, output)
+                else:
+                    sublime.error_message(output_err)
 
         print('PyYapf Completed')
