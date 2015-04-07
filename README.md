@@ -19,18 +19,18 @@ I have PyYapf bound by default to ctrl-alt-f.  You can also ctrl-shift-p then "P
 ##Installation
 
 1.  First install yapf.
-```
-pip install yapf
-```
+   ```
+   pip install yapf
+   ```
 2.  Install the PyYapf sublime-text plugin.
-I've submitted PyYapf to Package Control.  We should have simple installs soon.
+    I've submitted PyYapf to Package Control.  We should have simple installs soon.
 
-Until then something like this should get it going (where ~/.config/sublime-text2/Packages/ is your sublime-text package directory):
+    Until then something like this should get it going (where ~/.config/sublime-text2/Packages/ is your sublime-text     package directory):
 
-```sh
-cd ~/.config/sublime-text2/Packages/
-git clone https://github.com/jason-kane/PyYapf.git
-```
+   ```sh
+    cd ~/.config/sublime-text2/Packages/
+    git clone https://github.com/jason-kane/PyYapf.git
+    ```
 
 ##Problems?
 
