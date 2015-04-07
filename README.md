@@ -22,7 +22,6 @@ I have PyYapf bound by default to ctrl-alt-f.  You can also ctrl-shift-p then "P
 ```
 pip install yapf
 ```
-
 2.  Install the PyYapf sublime-text plugin.
 I've submitted PyYapf to Package Control.  We should have simple installs soon.
 
