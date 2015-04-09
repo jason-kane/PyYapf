@@ -13,7 +13,7 @@ import sublime, sublime_plugin
 KEY = "pyyapf"
 
 
-def failure_parser(in_failure):
+def failure_parser(in_failure, encoding):
     """
     Parse the last line of a yapf traceback into something
     we can use (preferable row/column)
@@ -22,6 +22,10 @@ def failure_parser(in_failure):
         # so much easier when we have the actual exception
         err = in_failure.reason
         msg = in_failure.message
+
+        msg = ("\nYou may need to re-open this file with a different"
+               " encoding.  Current encoding is %r" % encoding)
+
         tval = {'context': "(\"\", %i)" % in_failure.start}
     else:
         # we got a string error from yapf
@@ -74,6 +78,7 @@ def save_style_to_tempfile(in_dict):
     cfg.write(os.fdopen(fobj, "w"))
     return filename
 
+
 # pylint: disable=W0232
 class YapfCommand(sublime_plugin.TextCommand):
     """
@@ -81,6 +86,8 @@ class YapfCommand(sublime_plugin.TextCommand):
     the command 'yapf' is invoked.
     """
     view = None
+    encoding = None
+    debug = False
 
     def smart_failure(self, in_failure):
         """
@@ -88,10 +95,10 @@ class YapfCommand(sublime_plugin.TextCommand):
         and try to extract useful information like what kind
         of problem is it and where in your code the problem is.
         """
-        err, msg, context_dict = failure_parser(in_failure)
+        err, msg, context_dict = failure_parser(in_failure, self.encoding)
 
-        sublime.error_message("{0}\n{1}\n\n{2}".format(err, msg,
-                                                       repr(context_dict)))
+        sublime.error_message(
+            "{0}\n{1}\n\n{2}".format(err, msg, repr(context_dict)))
 
         if 'context' in context_dict:
             #"('', (46,44))"
@@ -120,9 +127,10 @@ class YapfCommand(sublime_plugin.TextCommand):
             self.view.add_regions(KEY, [region], scope, "dot")
             self.view.show_at_center(region)
 
-            print(repr(in_failure))
+            if self.debug:
+                print(repr(in_failure))
 
-    def save_selection_to_tempfile(self, selection, encoding):
+    def save_selection_to_tempfile(self, selection):
         """
         dump the current selection to a tempfile
         and return the filename.  caller is responsible
@@ -131,10 +139,10 @@ class YapfCommand(sublime_plugin.TextCommand):
         fobj, filename = tempfile.mkstemp(suffix=".py")
         temphandle = os.fdopen(fobj, 'w')
         try:
-            encoded = self.view.substr(selection).encode(encoding)
+            encoded = self.view.substr(selection).encode(self.encoding)
         except UnicodeEncodeError as err:
             self.smart_failure(err)
-            return
+            return None
 
         temphandle.write(encoded)
         temphandle.close()
@@ -146,14 +154,19 @@ class YapfCommand(sublime_plugin.TextCommand):
         """
         print("Formatting selection with Yapf")
 
-        encoding = self.view.encoding()
-        if encoding == "Undefined":
-            encoding = "ascii"
-
-        print('Using encoding of %r' % encoding)
-
         settings = sublime.load_settings("PyYapf.sublime-settings")
 
+        self.encoding = self.view.encoding()
+
+        if self.encoding == "Undefined":
+            print('Encoding is not specified.')
+            self.encoding = settings.get('default_encoding', 'UTF-8')
+
+        print('Using encoding of %r' % self.encoding)
+
+        self.debug = settings.get('debug', False)
+
+        # there is always at least one region
         for region in self.view.sel():
             if region.empty():
                 if settings.get("use_entire_file_if_no_selection", True):
@@ -165,38 +178,48 @@ class YapfCommand(sublime_plugin.TextCommand):
                 selection = region
 
             if selection:
-                py_filename = self.save_selection_to_tempfile(selection,
-                                                              encoding)
+                py_filename = self.save_selection_to_tempfile(selection)
 
-                style_filename = save_style_to_tempfile(
-                    settings.get("config", {}))
-                yapf = settings.get("yapf_command", "/usr/local/bin/yapf")
-                cmd = [yapf, "--style={0}".format(style_filename), "--verify",
-                       "--in-place", py_filename]
+                if py_filename:
+                    style_filename = save_style_to_tempfile(
+                        settings.get("config", {}))
 
-                print('Running {0}'.format(cmd))
-                proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
+                    yapf = os.path.expanduser(
+                        settings.get("yapf_command", "/usr/local/bin/yapf"))
 
-                output, output_err = proc.communicate()
-                #self.view.substr(selection).encode('utf-8')
-                #)
-                temphandle = codecs.open(py_filename, encoding=encoding)
-                output = temphandle.read()
-                temphandle.close()
+                    cmd = [yapf, "--style={0}".format(style_filename),
+                           "--verify", "--in-place", py_filename]
 
-                if output_err == "":
-                    self.view.replace(edit, selection, output)
-                else:
-                    try:
-                        self.smart_failure(output_err)
+                    print('Running {0}'.format(cmd))
+                    proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
 
-                    # Catching too general exception
-                    # pylint: disable=W0703
-                    except Exception as err:
-                        print('Unable to parse %r', err)
-                        sublime.error_message(output_err)
+                    output, output_err = proc.communicate()
 
-                os.unlink(py_filename)
+                    temphandle = codecs.open(py_filename,
+                                             encoding=self.encoding)
+                    output = temphandle.read()
+                    temphandle.close()
+
+                    if output_err == "":
+                        self.view.replace(edit, selection, output)
+                    else:
+                        try:
+                            self.smart_failure(output_err)
+
+                        # Catching too general exception
+                        # pylint: disable=W0703
+                        except Exception as err:
+                            print('Unable to parse %r', err)
+                            sublime.error_message(output_err)
+
+                    if self.debug:
+                        with open(style_filename) as file_handle:
+                            print(file_handle.read())
+
+                    os.unlink(py_filename)
                 os.unlink(style_filename)
+
+        print('restoring cursor to ', region, repr(region))
+        self.view.show_at_center(region)
 
         print('PyYapf Completed')
