@@ -3,7 +3,7 @@
       "yapf_command": "/usr/local/bin/yapf",
 
       "use_entire_file_if_no_selection": true,
-      
+
       // yapf style options
       "config": {
             // The column limit.
@@ -72,11 +72,5 @@
             // The penalty incurred by adding a line split to the unwrapped line. The
             // more line splits added the higher the penalty.
             "SPLIT_PENALTY_FOR_ADDED_LINE_SPLIT": 30,
-
-            // Use tabs in the resulting file.
-            "USE_TAB": false,
-
-            // The number of columns used for tab stops.
-            "TAB_WIDTH": 8
       }
 }
