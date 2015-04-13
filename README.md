@@ -7,13 +7,18 @@ I have PyYapf bound by default to ctrl-alt-f.  You can also ctrl-shift-p then "P
 
 ##Installation
 
-1.  Install Sublime Package Control
+1.  Install yapf
+   ```
+   pip install yapf
+   ```
+
+2.  Install Sublime Package Control
    ```
    https://packagecontrol.io/installation
    ```
 
-2.  Control-Shift-P, "Package Control: Install Package"
-3.  Find PyYapf in the list (type in a few characters and you'll seee it)
+3.  Control-Shift-P, "Package Control: Install Package"
+4.  Find PyYapf in the list (type in a few characters and you'll seee it)
 
 
 ##Problems?
