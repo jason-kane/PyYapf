@@ -14,6 +14,9 @@
 
       // yapf style options
       "config": {
+            // Align closing bracket with visual indentation.
+            "ALIGN_CLOSING_BRACKET_WITH_VISUAL_INDENT": true,
+
             // The column limit.
             "COLUMN_LIMIT": 79,
 
