@@ -1,15 +1,21 @@
 """
 Sublime Text 2 Plugin to invoke Yapf on a python file.
 """
+try:
+    from ConfigParser import RawConfigParser
+except ImportError:
+    from configparser import RawConfigParser
 
-import ConfigParser
 import os
 import subprocess
 import tempfile
 import codecs
+import re
+import sys
 
 import sublime, sublime_plugin
 
+PY3 = (sys.version_info[0] >= 3)
 KEY = "pyyapf"
 
 
@@ -30,6 +36,9 @@ def failure_parser(in_failure, encoding):
     else:
         # we got a string error from yapf
         #
+        print('YAPF exception: %s' % in_failure)
+        if PY3:
+            in_failure = in_failure.decode()
         lastline = in_failure.strip().split('\n')[-1]
         err, msg = lastline.split(':')[0:2]
         detail = ":".join(lastline.strip().split(':')[2:])
@@ -43,6 +52,14 @@ def failure_parser(in_failure, encoding):
             # ordinal not in range(128)
             position = msg.split('-')[-1]
             tval = {'context': "(\"\", %i)" % int(position)}
+        elif err == "UnicodeDecodeError":
+            # UnicodeEncodeError
+            # 'ascii' codec can't encode characters in position 130: ordinal
+            # not in range(128)
+            match = re.search(r'position (\d+)$', msg)
+            if match:
+                position = match.groups()[0]
+                tval = {'context': "(\"\", %i)" % int(position)}
         else:
             for element in detail.split(' '):
                 element = element.strip()
@@ -69,7 +86,7 @@ def save_style_to_tempfile(in_dict):
     style settings
     """
 
-    cfg = ConfigParser.RawConfigParser()
+    cfg = RawConfigParser()
     cfg.add_section('style')
     for key in in_dict:
         cfg.set('style', key, in_dict[key])
@@ -137,7 +154,8 @@ class YapfCommand(sublime_plugin.TextCommand):
         for cleanup.
         """
         fobj, filename = tempfile.mkstemp(suffix=".py")
-        temphandle = os.fdopen(fobj, 'w')
+        temphandle = os.fdopen(fobj, 'wb' if PY3 else 'w')
+
         try:
             encoded = self.view.substr(selection).encode(self.encoding)
         except UnicodeEncodeError as err:
@@ -200,16 +218,20 @@ class YapfCommand(sublime_plugin.TextCommand):
                     output = temphandle.read()
                     temphandle.close()
 
-                    if output_err == "":
+                    if not output_err:
                         self.view.replace(edit, selection, output)
                     else:
                         try:
+                            if not PY3:
+                                output_err = output_err.encode(self.encoding)
                             self.smart_failure(output_err)
 
                         # Catching too general exception
                         # pylint: disable=W0703
                         except Exception as err:
-                            print('Unable to parse %r', err)
+                            print('Unable to parse error: %r' % err)
+                            if PY3:
+                                output_err = output_err.decode()
                             sublime.error_message(output_err)
 
                     if self.debug:
