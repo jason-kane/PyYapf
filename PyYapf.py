@@ -1,17 +1,18 @@
+# -*- coding: utf-8 -*-
 """
-Sublime Text 2 Plugin to invoke Yapf on a python file.
+Sublime Text 2/3 Plugin to invoke Yapf on a python file.
 """
 try:
     from ConfigParser import RawConfigParser
 except ImportError:
     from configparser import RawConfigParser
 
-import os
-import subprocess
-import tempfile
 import codecs
+import os
 import re
+import subprocess
 import sys
+import tempfile
 
 import sublime, sublime_plugin
 
@@ -209,7 +210,11 @@ class YapfCommand(sublime_plugin.TextCommand):
                            "--verify", "--in-place", py_filename]
 
                     print('Running {0}'.format(cmd))
-                    proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
+                    environment = os.environ.copy()
+                    environment['LANG'] = self.encoding
+                    proc = subprocess.Popen(cmd,
+                                            stderr=subprocess.PIPE,
+                                            env=environment)
 
                     output, output_err = proc.communicate()
 
