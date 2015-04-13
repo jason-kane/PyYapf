@@ -183,6 +183,11 @@ class YapfCommand(sublime_plugin.TextCommand):
 
         print('Using encoding of %r' % self.encoding)
 
+        # force set ENV var to avoid issue google/yapf#49
+        if settings.get('force_lang_env', False):
+            previous_env_var = os.environ.get('LANG')
+            os.environ['LANG'] = self.encoding
+
         self.debug = settings.get('debug', False)
 
         # there is always at least one region
@@ -249,4 +254,8 @@ class YapfCommand(sublime_plugin.TextCommand):
         print('restoring cursor to ', region, repr(region))
         self.view.show_at_center(region)
 
+        if settings.get('force_lang_env', False):
+            if previous_env_var:
+                # restore previous LANG env. variable
+                os.environ['LANG'] = previous_env_var
         print('PyYapf Completed')
