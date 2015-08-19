@@ -75,7 +75,7 @@
             // bracket tokens. For instance, if there is a newline after the opening
             // bracket, we would tend to expect one before the closing bracket, and
             // vice versa.
-            "SPLIT_PENALTY_MATCHING_BRACKET": 50,
+            //"SPLIT_PENALTY_MATCHING_BRACKET": 50,
 
             // The penalty for splitting right after the opening bracket.
             "SPLIT_PENALTY_AFTER_OPENING_BRACKET": 30,
