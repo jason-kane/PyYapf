@@ -163,9 +163,25 @@ class YapfCommand(sublime_plugin.TextCommand):
             self.smart_failure(err)
             return None
 
-        temphandle.write(encoded)
+        self.indent = b""
+        detected = False
+        unindented = []
+        for line in encoded.splitlines(keepends=True):
+            if not detected:
+                self.indent, codeline, _ = line.partition(line.strip())
+                if len(codeline) > 0:
+                    detected = True
+            unindented.append(line.lstrip(self.indent))
+
+        temphandle.write(b''.join(unindented))
         temphandle.close()
         return filename
+
+    def replace_selection(self, edit, selection, output):
+        reindented = []
+        for line in output.splitlines(keepends=True):
+            reindented.append(self.indent + line)
+        self.view.replace(edit, selection, b''.join(output))
 
     def run(self, edit):
         """
@@ -224,7 +240,7 @@ class YapfCommand(sublime_plugin.TextCommand):
                     temphandle.close()
 
                     if not output_err:
-                        self.view.replace(edit, selection, output)
+                        self.replace_selection(edit, selection, output)
                     else:
                         try:
                             if not PY3:
