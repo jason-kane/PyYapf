@@ -168,10 +168,11 @@ class YapfCommand(sublime_plugin.TextCommand):
         unindented = []
         for line in encoded.splitlines(keepends=True):
             if not detected:
-                self.indent, codeline, _ = line.partition(line.strip())
+                codeline = line.strip()
                 if len(codeline) > 0:
+                    self.indent, _, _ = line.partition(codeline)
                     detected = True
-            unindented.append(line.lstrip(self.indent))
+            unindented.append(line[len(self.indent):])
 
         temphandle.write(b''.join(unindented))
         temphandle.close()
@@ -179,9 +180,10 @@ class YapfCommand(sublime_plugin.TextCommand):
 
     def replace_selection(self, edit, selection, output):
         reindented = []
+        indent = self.indent.decode(self.encoding)
         for line in output.splitlines(keepends=True):
-            reindented.append(self.indent + line)
-        self.view.replace(edit, selection, b''.join(output))
+            reindented.append(indent + line)
+        self.view.replace(edit, selection, ''.join(reindented))
 
     def run(self, edit):
         """
