@@ -115,8 +115,8 @@ class YapfCommand(sublime_plugin.TextCommand):
         """
         err, msg, context_dict = failure_parser(in_failure, self.encoding)
 
-        sublime.error_message(
-            "{0}\n{1}\n\n{2}".format(err, msg, repr(context_dict)))
+        sublime.error_message("{0}\n{1}\n\n{2}".format(err, msg, repr(
+            context_dict)))
 
         if 'context' in context_dict:
             #"('', (46,44))"
