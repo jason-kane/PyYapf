@@ -270,16 +270,5 @@ class YapfCommand(sublime_plugin.TextCommand):
         print('PyYapf Completed')
 
     def is_visible(self):
-        fName = self.view.file_name()
-        vSettings = self.view.settings()
-        syntaxPath = vSettings.get('syntax')
-        syntax = ""
-        ext = ""
-
-        if (fName != None): # file exists, pull syntax type from extension
-            ext = os.path.splitext(fName)[1][1:]
-        if(syntaxPath != None):
-            syntax = os.path.splitext(syntaxPath)[0].split('/')[-1].lower()
-
-        return ext == 'py' or "Python" in syntax
-
+        is_python = self.view.score_selector(0, 'source.python') > 0
+        return is_python
