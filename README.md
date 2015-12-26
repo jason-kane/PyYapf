@@ -1,9 +1,11 @@
 # PyYapf
-Sublime 2/3 plugin to run Yapf Python formatter
 
-https://github.com/google/yapf
+Sublime 2/3 plugin to run the [YAPF](https://github.com/google/yapf) Python formatter
 
-I have PyYapf bound by default to ctrl-alt-f.  You can also ctrl-shift-p then "PyYapf: Reformat Python".
+## Usage
+
+By default, press `Ctrl-Alt-F` to format the current selection (or the entire document if nothing is selected).
+You can also `Ctrl-Shift-P` and select "PyYapf: Format Selection".
 
 ##Installation
 
@@ -21,7 +23,6 @@ I have PyYapf bound by default to ctrl-alt-f.  You can also ctrl-shift-p then "P
 3.  Control-Shift-P (mac: command-shift-p), Choose "Package Control: Install Package"
 
 4.  Find PyYapf in the list (type in a few characters and you should see it)
-
 
 ##Problems?
 

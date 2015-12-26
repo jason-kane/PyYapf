@@ -98,11 +98,16 @@ def save_style_to_tempfile(in_dict):
 
 
 # pylint: disable=W0232
-class YapfCommand(sublime_plugin.TextCommand):
+class YapfSelectionCommand(sublime_plugin.TextCommand):
     """
-    This is the actual class instantated by Sublime when
-    the command 'yapf' is invoked.
+    The "yapf_selection" command formats the current selection (or the entire
+    document if the "use_entire_file_if_no_selection" option is enabled).
     """
+
+    def is_enabled(self):
+        is_python = self.view.score_selector(0, 'source.python') > 0
+        return is_python
+
     view = None
     encoding = None
     debug = False
@@ -287,7 +292,3 @@ class YapfCommand(sublime_plugin.TextCommand):
         self.view.show_at_center(region)
 
         print('PyYapf Completed')
-
-    def is_enabled(self):
-        is_python = self.view.score_selector(0, 'source.python') > 0
-        return is_python

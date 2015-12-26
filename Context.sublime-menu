@@ -1,7 +1,6 @@
 [
     {
-        "id": "yapf",
-        "caption": "PyYapf: Reformat Python",
-        "command": "yapf"
+        "caption": "PyYapf: Format Selection",
+        "command": "yapf_selection"
     }
 ]
