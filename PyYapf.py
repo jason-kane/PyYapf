@@ -169,13 +169,11 @@ class YapfCommand(sublime_plugin.TextCommand):
         return unindented
 
     def replace_selection(self, edit, selection, output):
-        reindented = []
         indent = self.indent.decode(self.encoding)
-        line_endings = self.view.line_endings()
-        for line in output.splitlines(keepends=True):
-            reindented.append(indent + line)
+        reindented = []
+        for line in output.splitlines():
+            reindented.append(indent + line + '\n')
         self.view.replace(edit, selection, ''.join(reindented))
-        self.view.set_line_endings(line_endings)
 
     def run(self, edit):
         """
