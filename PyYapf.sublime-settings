@@ -2,23 +2,68 @@
       // full path and command to run yapf
       "yapf_command": "/usr/local/bin/yapf",
 
+      // reformat entire file if no text is selected
       "use_entire_file_if_no_selection": true,
 
-      // add extra output to the console for debugging pyyapf/yapf behavior
-      "debug": false,
-
       // if no encoding is specified use this.  utf-8 is a good choice,
-      // ascii is (much) more restrictive.  Any of these should work:
+      // ascii is (much) more restrictive.  any of these should work:
       // https://docs.python.org/2/library/codecs.html#standard-encodings
       "default_encoding": "UTF-8",
 
-      // yapf style options
+      // custom yapf style options
+      //
+      // if commented out then yapf will search for the formatting style in the following manner:
+      // 1. in the [style] section of a .style.yapf file in either the current directory or one of its parent directories.
+      // 2. in the [yapf] section of a setup.cfg file in either the current directory or one of its parent directories.
+      // 3. in the ~/.config/yapf/style file in your home directory.
+      // if none of those files are found, the default style is used (PEP8).
+      //
+      /*
       "config": {
+            // Determines which of the predefined styles this custom style is based on.
+            "based_on_style": "pep8",
+
             // Align closing bracket with visual indentation.
             "ALIGN_CLOSING_BRACKET_WITH_VISUAL_INDENT": true,
 
+            // Insert a blank line before a 'def' or 'class' immediately
+            // nested within another 'def' or 'class'.
+            //
+            // For example:
+            //
+            // class Foo:
+            //                    # <------ this blank line
+            //   def method():
+            //     ...
+            //
+            "BLANK_LINE_BEFORE_NESTED_CLASS_OR_DEF": false,
+
             // The column limit.
             "COLUMN_LIMIT": 79,
+
+            // Indent width for line continuations.
+            "CONTINUATION_INDENT_WIDTH": 4,
+
+            // Put closing brackets on a separate line, dedented, if the
+            // bracketed expression can't fit in a single line. Applies to
+            // all kinds of brackets, including function definitions and calls.
+            //
+            // For example:
+            //
+            // config = {
+            //     'key1': 'value1',
+            //     'key2': 'value2',
+            // }        # <--- this bracket is dedented and on a separate line
+            //
+            // time_series = self.remote_client.query_entity_counters(
+            //   entity='dev3246.region1',
+            //   key='dns.query_latency_tcp',
+            //   transform=Transformation.AVERAGE(window=timedelta(seconds=60)),
+            //   start_ts=now()-timedelta(days=3),
+            //   end_ts=now(),
+            // )        # <--- this bracket is dedented and on a separate line
+
+            "DEDENT_CLOSING_BRACKETS": false,
 
             // The regex for an i18n comment. The presence of this comment stops
             // reformatting of that line, because the comments are required to be
@@ -30,23 +75,23 @@
             // away from the i18n comment.
             "I18N_FUNCTION_CALL": "",
 
-            // The number of columns to use for indentation.
-            "INDENT_WIDTH": 4,
-
-            // Indent width for line continuations.
-            "CONTINUATION_INDENT_WIDTH": 4,
-
-            // Insert a blank line before a 'def' or 'class' immediately nested within
-            //another 'def' or 'class'.
+            // Indent the dictionary value if it cannot fit on the same line as the dictionary key.
             //
             // For example:
             //
-            // class Foo:
-            //                    # <------ this blank line
-            //   def method():
-            //     ...
-            //
-            "BLANK_LINE_BEFORE_NESTED_CLASS_OR_DEF": false,
+            // config = {
+            //     'key1':
+            //         'value1',
+            //     'key2': value1 +
+            //             value2,
+            // }
+            "INDENT_DICTIONARY_VALUE": false,
+
+            // The number of columns to use for indentation.
+            "INDENT_WIDTH": 4,
+
+            // Join short lines into one line. E.g., single line if statements.
+            "JOIN_MULTIPLE_LINES": true,
 
             // Insert a space between the ending comma and closing bracket of a list,
             // etc.
@@ -55,6 +100,9 @@
             // The number of spaces required before a trailing comment.
             "SPACES_BEFORE_COMMENT": 2,
 
+            // Set to True to prefer splitting before &, | or ^ rather than after.
+            "SPLIT_BEFORE_BITWISE_OPERATOR": true,
+
             // Set to True to prefer splitting before 'and' or 'or' rather than
             // after.
             "SPLIT_BEFORE_LOGICAL_OPERATOR": false,
@@ -62,26 +110,41 @@
             // Split named assignments onto individual lines.
             "SPLIT_BEFORE_NAMED_ASSIGNS": true,
 
-            // The penalty for splitting the line after a unary operator.
-            "SPLIT_PENALTY_AFTER_UNARY_OPERATOR": 100,
-
-            // The penalty for characters over the column limit.
-            "SPLIT_PENALTY_EXCESS_CHARACTER": 200,
-
-            // The penalty of splitting the line around the 'and' and 'or' operators.
-            "SPLIT_PENALTY_LOGICAL_OPERATOR": 30,
-
-            // The penalty for not matching the splitting decision for the matching
-            // bracket tokens. For instance, if there is a newline after the opening
-            // bracket, we would tend to expect one before the closing bracket, and
-            // vice versa.
-            //"SPLIT_PENALTY_MATCHING_BRACKET": 50,
-
             // The penalty for splitting right after the opening bracket.
             "SPLIT_PENALTY_AFTER_OPENING_BRACKET": 30,
 
+            // The penalty for splitting the line after a unary operator.
+            "SPLIT_PENALTY_AFTER_UNARY_OPERATOR": 10000,
+
+            // The penalty of splitting the line around the &, |, and ^ operators.
+            "SPLIT_PENALTY_BITWISE_OPERATOR": 300,
+
+            // The penalty for characters over the column limit.
+            "SPLIT_PENALTY_EXCESS_CHARACTER": 2500,
+
             // The penalty incurred by adding a line split to the unwrapped line. The
             // more line splits added the higher the penalty.
-            "SPLIT_PENALTY_FOR_ADDED_LINE_SPLIT": 30
-      }
+            "SPLIT_PENALTY_FOR_ADDED_LINE_SPLIT": 30,
+
+            // The penalty of splitting a list of import as names.
+            //
+            // For example:
+            //
+            //   from a_very_long_or_indented_module_name_yada_yad import (long_argument_1,
+            //                                                             long_argument_2,
+            //                                                             long_argument_3)
+            //
+            // would reformat to something like:
+            //
+            // from a_very_long_or_indented_module_name_yada_yad import (
+            //     long_argument_1, long_argument_2, long_argument_3)
+            "SPLIT_PENALTY_IMPORT_NAMES": 0,
+
+            // The penalty of splitting the line around the 'and' and 'or' operators.
+            "SPLIT_PENALTY_LOGICAL_OPERATOR": 300,
+      },
+      */
+
+      // add extra output to the console for debugging pyyapf/yapf behavior
+      "debug": false,
 }
