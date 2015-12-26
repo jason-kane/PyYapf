@@ -184,10 +184,6 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
             if style_filename:
                 os.unlink(style_filename)
 
-        # restore cursor
-        print('restoring cursor to ', region, repr(region))
-        self.view.show_at_center(region)
-
         print('PyYapf Completed')
 
 
