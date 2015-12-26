@@ -1,6 +1,6 @@
 # PyYapf
 
-Sublime 2/3 plugin to run the [YAPF](https://github.com/google/yapf) Python formatter
+Sublime Text 3 plugin to run the [YAPF](https://github.com/google/yapf) Python formatter
 
 ## Usage
 

@@ -1,22 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Sublime Text 2/3 Plugin to invoke Yapf on a python file.
+Sublime Text 3 Plugin to invoke Yapf on a python file.
 """
-try:
-    from ConfigParser import RawConfigParser
-except ImportError:
-    from configparser import RawConfigParser
-
 import codecs
 import os
 import re
 import subprocess
 import sys
 import tempfile
+import configparser
 
 import sublime, sublime_plugin
 
-PY3 = (sys.version_info[0] >= 3)
 KEY = "pyyapf"
 
 
@@ -38,8 +33,7 @@ def failure_parser(in_failure, encoding):
         # we got a string error from yapf
         #
         print('YAPF exception: %s' % in_failure)
-        if PY3:
-            in_failure = in_failure.decode()
+        in_failure = in_failure.decode(encoding)
         lastline = in_failure.strip().split('\n')[-1]
         err, msg = lastline.split(':')[0:2]
         detail = ":".join(lastline.strip().split(':')[2:])
@@ -87,7 +81,7 @@ def save_style_to_tempfile(in_dict):
     style settings
     """
 
-    cfg = RawConfigParser()
+    cfg = configparser.RawConfigParser()
     cfg.add_section('style')
     for key in in_dict:
         cfg.set('style', key, in_dict[key])
@@ -272,16 +266,13 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
             # handle errors (since yapf>=0.3: exit code 2 means changed, not error)
             if popen.returncode not in (0, 2):
                 try:
-                    if not PY3:
-                        output_err = output_err.encode(self.encoding)
                     self.smart_failure(output_err)
 
                 # Catching too general exception
                 # pylint: disable=W0703
                 except Exception as err:
                     print('Unable to parse error: %r' % err)
-                    if PY3:
-                        output_err = output_err.decode()
+                    output_err = output_err.decode(self.encoding)
                     sublime.error_message(output_err)
             else:
                 output = output.decode(self.encoding)
