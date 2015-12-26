@@ -2,5 +2,9 @@
     {
         "caption": "PyYapf: Format Selection",
         "command": "yapf_selection"
-    }
+    },
+    {
+        "caption": "PyYapf: Format Document",
+        "command": "yapf_document"
+    },
 ]

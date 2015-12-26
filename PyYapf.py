@@ -97,6 +97,10 @@ def save_style_to_tempfile(in_dict):
     return filename
 
 
+def is_python(view):
+    return view.score_selector(0, 'source.python') > 0
+
+
 # pylint: disable=W0232
 class YapfSelectionCommand(sublime_plugin.TextCommand):
     """
@@ -105,8 +109,7 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
     """
 
     def is_enabled(self):
-        is_python = self.view.score_selector(0, 'source.python') > 0
-        return is_python
+        return is_python(self.view)
 
     view = None
     encoding = None
@@ -292,3 +295,24 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
         self.view.show_at_center(region)
 
         print('PyYapf Completed')
+
+
+# pylint: disable=W0232
+class YapfDocumentCommand(sublime_plugin.TextCommand):
+    """
+    The "yapf_document" command formats the current document.
+    """
+
+    def is_enabled(self):
+        return is_python(self.view)
+
+    def run(self, edit):
+        # XXX
+        self.view.run_command('yapf_selection')
+
+
+class EventListener(sublime_plugin.EventListener):
+    def on_pre_save(self, view):
+        settings = sublime.load_settings("PyYapf.sublime-settings")
+        if settings.get('on_save'):
+            view.run_command('yapf_document')

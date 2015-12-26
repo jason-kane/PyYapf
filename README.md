@@ -5,11 +5,12 @@ Sublime 2/3 plugin to run the [YAPF](https://github.com/google/yapf) Python form
 ## Usage
 
 By default, press `Ctrl-Alt-F` to format the current selection (or the entire document if nothing is selected).
-You can also `Ctrl-Shift-P` (Mac: `Cmd-Shift-P`) and select "PyYapf: Format Selection".
+You can also `Ctrl-Shift-P` (Mac: `Cmd-Shift-P`) and select "PyYapf: Format Selection" or "PyYapf: Format Document".
+To automatically run YAPF on the current document before saving, use the `on_save` setting.
 
 ##Installation
 
-1.  Install yapf (if you haven't already):
+1.  Install YAPF (if you haven't already):
    ```
    pip install yapf
    ```
