@@ -190,20 +190,18 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         yapf = Yapf(self.view)
 
-        # there is always at least one region...
-        for region in self.view.sel():
-            # ...if it is empty then there is no selection
-            if region.empty():
-                if yapf.settings.get("use_entire_file_if_no_selection"):
-                    selection = sublime.Region(0, self.view.size())
-                else:
-                    sublime.error_message('A selection is required')
-                    break
+        # empty selection?
+        if all(s.empty() for s in self.view.sel()):
+            if yapf.settings.get("use_entire_file_if_no_selection"):
+                self.view.run_command('yapf_document')
             else:
-                selection = region
+                sublime.error_message('A selection is required')
+            return
 
-            # format region
-            yapf.format(selection, edit)
+        # otherwise format all (non-empty) ones
+        for s in self.view.sel():
+            if not s.empty():
+                yapf.format(s, edit)
 
 
 # pylint: disable=W0232
@@ -216,8 +214,8 @@ class YapfDocumentCommand(sublime_plugin.TextCommand):
         return is_python(self.view)
 
     def run(self, edit):
-        selection = sublime.Region(0, self.view.size())
-        Yapf(self.view).format(selection, edit)
+        s = sublime.Region(0, self.view.size())
+        Yapf(self.view).format(s, edit)
 
 
 class EventListener(sublime_plugin.EventListener):
