@@ -269,6 +269,6 @@ class YapfCommand(sublime_plugin.TextCommand):
 
         print('PyYapf Completed')
 
-    def is_visible(self):
+    def is_enabled(self):
         is_python = self.view.score_selector(0, 'source.python') > 0
         return is_python
