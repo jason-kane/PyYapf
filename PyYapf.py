@@ -10,7 +10,8 @@ import tempfile
 import configparser
 import textwrap
 
-import sublime, sublime_plugin
+import sublime
+import sublime_plugin
 
 KEY = "pyyapf"
 
@@ -55,8 +56,26 @@ def indent_text(text, indent, trailing_nl):
     return text
 
 
-def is_python(view):
-    return view.score_selector(0, 'source.python') > 0
+def parse_error_line(err_lines):
+    """
+    Parse YAPF output to determine line on which error occurred.
+    """
+    msg = err_lines[-1]
+
+    # yapf.yapflib.verifier.InternalError: Missing parentheses in call to 'print' (<string>, line 2)
+    if '(<string>, line ' in msg:
+        return int(msg.rstrip(')').rsplit(maxsplit=1)[1]) + 1
+
+    # lib2to3.pgen2.tokenize.TokenError: ('EOF in multi-line statement', (5, 0))
+    if msg.endswith('))'):
+        return int(msg.rstrip(')').rsplit(maxsplit=2)[1].strip(',('))
+
+    #   File "<unknown>", line 3
+    #     if:
+    #       ^
+    # SyntaxError: invalid syntax
+    if len(err_lines) >= 4 and ', line' in err_lines[-4]:
+        return int(err_lines[-4].rsplit(maxsplit=1)[1])
 
 
 class Yapf:
@@ -115,7 +134,8 @@ class Yapf:
         else:
             self.popen_startupinfo = None
 
-        # clear status
+        # clear marked regions and status
+        view.erase_regions(KEY)
         view.erase_status(KEY)
         self.errors = []
 
@@ -162,12 +182,18 @@ class Yapf:
             # report error
             err_lines = err.splitlines()
             msg = err_lines[-1]
-            if 'InternalError' in msg:
-                self.error('%s', msg)
-            else:
-                loc = err_lines[-4]
-                loc = loc[loc.find('line'):].capitalize()
-                self.error('%s (%s)', msg, loc)
+            self.error('%s', msg)
+
+            # attempt to highlight line where error occurred
+            rel_line = parse_error_line(err_lines)
+            if rel_line:
+                line, col = self.view.rowcol(selection.begin())
+                pt = self.view.text_point(line + rel_line - 1, 0)
+                region = self.view.line(pt)
+                self.view.add_regions(KEY, [region], KEY, 'cross',
+                                      sublime.DRAW_NO_FILL
+                                      | sublime.DRAW_NO_OUTLINE
+                                      | sublime.DRAW_SQUIGGLY_UNDERLINE)
             return
 
         # decode text, reindent, and apply
@@ -187,6 +213,10 @@ class Yapf:
         self.view.set_status(KEY, 'PyYapf: %s' % ', '.join(self.errors))
         if self.settings.get('popup_errors'):
             sublime.error_message(msg)
+
+
+def is_python(view):
+    return view.score_selector(0, 'source.python') > 0
 
 
 # pylint: disable=W0232
