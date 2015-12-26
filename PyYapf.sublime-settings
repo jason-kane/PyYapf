@@ -12,7 +12,12 @@
 
       // custom yapf style options
       //
-      // if commented out then yapf's default style will be used (PEP8)
+      // if commented out then yapf will search for the formatting style in the following manner:
+      // 1. in the [style] section of a .style.yapf file in either the current directory or one of its parent directories.
+      // 2. in the [yapf] section of a setup.cfg file in either the current directory or one of its parent directories.
+      // 3. in the ~/.config/yapf/style file in your home directory.
+      // if none of those files are found, the default style is used (PEP8).
+      //
       /*
       "config": {
             // Determines which of the predefined styles this custom style is based on.

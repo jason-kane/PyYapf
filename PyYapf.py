@@ -234,6 +234,10 @@ class YapfCommand(sublime_plugin.TextCommand):
             else:
                 style_filename = None
 
+            # use directory of current file so that custom styles are found properly
+            fname = self.view.file_name()
+            cwd = os.path.dirname(fname) if fname else None
+
             # specify encoding in environment
             env = os.environ.copy()
             env['LANG'] = self.encoding
@@ -247,13 +251,14 @@ class YapfCommand(sublime_plugin.TextCommand):
                 startupinfo = None
 
             # run yapf
-            print('Running {0}'.format(args))
+            print('Running {0} in {1}'.format(args, cwd))
             if self.debug:
                 print('Environment: {0}'.format(env))
             popen = subprocess.Popen(args,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      stdin=subprocess.PIPE,
+                                     cwd=cwd,
                                      env=env,
                                      startupinfo=startupinfo)
             output, output_err = popen.communicate(encoded_selection)
