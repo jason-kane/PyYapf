@@ -148,15 +148,7 @@ class YapfCommand(sublime_plugin.TextCommand):
             if self.debug:
                 print(repr(in_failure))
 
-    def save_selection_to_tempfile(self, selection):
-        """
-        dump the current selection to a tempfile
-        and return the filename.  caller is responsible
-        for cleanup.
-        """
-        fobj, filename = tempfile.mkstemp(suffix=".py")
-        temphandle = os.fdopen(fobj, 'wb' if PY3 else 'w')
-
+    def encode_selection(self, selection):
         try:
             encoded = self.view.substr(selection).encode(self.encoding)
         except UnicodeEncodeError as err:
@@ -173,17 +165,17 @@ class YapfCommand(sublime_plugin.TextCommand):
                     self.indent, _, _ = line.partition(codeline)
                     detected = True
             unindented.append(line[len(self.indent):])
-
-        temphandle.write(b''.join(unindented))
-        temphandle.close()
-        return filename
+        unindented = b''.join(unindented)
+        return unindented
 
     def replace_selection(self, edit, selection, output):
         reindented = []
         indent = self.indent.decode(self.encoding)
+        line_endings = self.view.line_endings()
         for line in output.splitlines(keepends=True):
             reindented.append(indent + line)
         self.view.replace(edit, selection, ''.join(reindented))
+        self.view.set_line_endings(line_endings)
 
     def run(self, edit):
         """
@@ -205,82 +197,89 @@ class YapfCommand(sublime_plugin.TextCommand):
 
         # there is always at least one region
         for region in self.view.sel():
+            # determine selection to format
             if region.empty():
                 if settings.get("use_entire_file_if_no_selection"):
                     selection = sublime.Region(0, self.view.size())
                 else:
                     sublime.error_message('A selection is required')
-                    selection = None
+                    continue
             else:
                 selection = region
 
-            if selection:
-                py_filename = self.save_selection_to_tempfile(selection)
+            # encode selection
+            encoded_selection = self.encode_selection(selection)
+            if not encoded_selection:
+                continue
 
-                if py_filename:
-                    # determine yapf command
-                    cmd = settings.get("yapf_command")
-                    assert cmd, "yapf_command not configured"
-                    cmd = os.path.expanduser(cmd)
-                    args = [cmd]
+            # determine yapf command
+            cmd = settings.get("yapf_command")
+            assert cmd, "yapf_command not configured"
+            cmd = os.path.expanduser(cmd)
+            args = [cmd]
 
-                    # verify reformatted code
-                    args += ["--verify"]
+            # verify reformatted code
+            args += ["--verify"]
 
-                    # override style?
-                    if settings.has('config'):
-                        custom_style = settings.get("config")
-                        style_filename = save_style_to_tempfile(custom_style)
-                        args += ["--style={0}".format(style_filename)]
+            # override style?
+            if settings.has('config'):
+                custom_style = settings.get("config")
+                style_filename = save_style_to_tempfile(custom_style)
+                args += ["--style={0}".format(style_filename)]
 
-                        if self.debug:
-                            print('Using custom style:')
-                            with open(style_filename) as file_handle:
-                                print(file_handle.read())
-                    else:
-                        style_filename = None
+                if self.debug:
+                    print('Using custom style:')
+                    with open(style_filename) as file_handle:
+                        print(file_handle.read())
+            else:
+                style_filename = None
 
-                    # add target file
-                    args += ["--in-place", py_filename]
+            # specify encoding in environment
+            env = os.environ.copy()
+            env['LANG'] = self.encoding
 
-                    # specify encoding in environment
-                    env = os.environ.copy()
-                    env['LANG'] = self.encoding
+            # win32: hide console window
+            if sys.platform in ('win32', 'cygwin'):
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags = subprocess.CREATE_NEW_CONSOLE | subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = subprocess.SW_HIDE
+            else:
+                startupinfo = None
 
-                    print('Running {0}'.format(args))
-                    if self.debug:
-                        print('Environment: {0}'.format(env))
-                    proc = subprocess.Popen(args,
-                                            stderr=subprocess.PIPE,
-                                            env=env)
+            # run yapf
+            print('Running {0}'.format(args))
+            if self.debug:
+                print('Environment: {0}'.format(env))
+            popen = subprocess.Popen(args,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE,
+                                     stdin=subprocess.PIPE,
+                                     env=env,
+                                     startupinfo=startupinfo)
+            output, output_err = popen.communicate(encoded_selection)
 
-                    output, output_err = proc.communicate()
+            # handle errors (since yapf>=0.3: exit code 2 means changed, not error)
+            if popen.returncode not in (0, 2):
+                try:
+                    if not PY3:
+                        output_err = output_err.encode(self.encoding)
+                    self.smart_failure(output_err)
 
-                    temphandle = codecs.open(py_filename,
-                                             encoding=self.encoding)
-                    output = temphandle.read()
-                    temphandle.close()
+                # Catching too general exception
+                # pylint: disable=W0703
+                except Exception as err:
+                    print('Unable to parse error: %r' % err)
+                    if PY3:
+                        output_err = output_err.decode()
+                    sublime.error_message(output_err)
+            else:
+                output = output.decode(self.encoding)
+                self.replace_selection(edit, selection, output)
 
-                    if not output_err:
-                        self.replace_selection(edit, selection, output)
-                    else:
-                        try:
-                            if not PY3:
-                                output_err = output_err.encode(self.encoding)
-                            self.smart_failure(output_err)
+            if style_filename:
+                os.unlink(style_filename)
 
-                        # Catching too general exception
-                        # pylint: disable=W0703
-                        except Exception as err:
-                            print('Unable to parse error: %r' % err)
-                            if PY3:
-                                output_err = output_err.decode()
-                            sublime.error_message(output_err)
-
-                    if style_filename:
-                        os.unlink(style_filename)
-                    os.unlink(py_filename)
-
+        # restore cursor
         print('restoring cursor to ', region, repr(region))
         self.view.show_at_center(region)
 
