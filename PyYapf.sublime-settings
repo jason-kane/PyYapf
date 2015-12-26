@@ -8,6 +8,9 @@
       // run yapf before saving document
       "on_save": false,
 
+      // report errors in popup dialog (in addition to status bar)
+      "popup_errors": false,
+
       // if no encoding is specified use this.  utf-8 is a good choice,
       // ascii is (much) more restrictive.  any of these should work:
       // https://docs.python.org/2/library/codecs.html#standard-encodings
