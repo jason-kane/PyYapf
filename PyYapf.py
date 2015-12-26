@@ -36,11 +36,23 @@ def dedent_text(text):
     new_first = new_text.splitlines()[0]
     assert old_first.endswith(new_first), 'PyYapf: Dedent logic flawed'
     indent = old_first[:len(old_first) - len(new_first)]
-    return new_text, indent
+
+    # determine if have trailing newline (when using the "yapf_selection"
+    # command, it can happen that there is none)
+    trailing_nl = text.endswith('\n')
+
+    return new_text, indent, trailing_nl
 
 
-def indent_text(text, indent):
-    return textwrap.indent(text, indent)
+def indent_text(text, indent, trailing_nl):
+    # reindent
+    text = textwrap.indent(text, indent)
+
+    # remove trailing newline if so desired
+    if not trailing_nl and text.endswith('\n'):
+        text = text[:-1]
+
+    return text
 
 
 def is_python(view):
@@ -119,7 +131,7 @@ class Yapf:
 
         # retrieve selected text & dedent
         text = self.view.substr(selection)
-        text, indent = dedent_text(text)
+        text, indent, trailing_nl = dedent_text(text)
         self.debug('Detected indent %r', indent)
 
         # encode text
@@ -160,7 +172,7 @@ class Yapf:
 
         # decode text, reindent, and apply
         text = encoded_output.decode(self.encoding).replace(os.linesep, '\n')
-        text = indent_text(text, indent)
+        text = indent_text(text, indent, trailing_nl)
         self.view.replace(edit, selection, text)
 
     def debug(self, msg, *args):
