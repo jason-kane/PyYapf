@@ -197,16 +197,16 @@ class YapfCommand(sublime_plugin.TextCommand):
 
         if self.encoding == "Undefined":
             print('Encoding is not specified.')
-            self.encoding = settings.get('default_encoding', 'UTF-8')
+            self.encoding = settings.get('default_encoding')
 
         print('Using encoding of %r' % self.encoding)
 
-        self.debug = settings.get('debug', False)
+        self.debug = settings.get('debug')
 
         # there is always at least one region
         for region in self.view.sel():
             if region.empty():
-                if settings.get("use_entire_file_if_no_selection", True):
+                if settings.get("use_entire_file_if_no_selection"):
                     selection = sublime.Region(0, self.view.size())
                 else:
                     sublime.error_message('A selection is required')
@@ -229,8 +229,8 @@ class YapfCommand(sublime_plugin.TextCommand):
 
                     # override style?
                     if settings.has('config'):
-                        style_filename = save_style_to_tempfile(settings.get(
-                            "config", {}))
+                        custom_style = settings.get("config")
+                        style_filename = save_style_to_tempfile(custom_style)
                         args += ["--style={0}".format(style_filename)]
 
                         if self.debug:
