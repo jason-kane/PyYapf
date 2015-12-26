@@ -15,65 +15,6 @@ import sublime, sublime_plugin
 KEY = "pyyapf"
 
 
-def failure_parser(in_failure, encoding):
-    """
-    Parse the last line of a yapf traceback into something
-    we can use (preferable row/column)
-    """
-    if isinstance(in_failure, UnicodeEncodeError):
-        # so much easier when we have the actual exception
-        err = in_failure.reason
-        msg = in_failure.message
-
-        msg = ("\nYou may need to re-open this file with a different"
-               " encoding.  Current encoding is %r" % encoding)
-
-        tval = {'context': "(\"\", %i)" % in_failure.start}
-    else:
-        # we got a string error from yapf
-        #
-        print('YAPF exception: %s' % in_failure)
-        in_failure = in_failure.decode(encoding)
-        lastline = in_failure.strip().split('\n')[-1]
-        err, msg = lastline.split(':')[0:2]
-        detail = ":".join(lastline.strip().split(':')[2:])
-        tval = {}
-        stripped_comma = False
-        key = None
-
-        if err == "UnicodeEncodeError":
-            # UnicodeEncodeError
-            # 'ascii' codec can't encode characters in position 175337-175339
-            # ordinal not in range(128)
-            position = msg.split('-')[-1]
-            tval = {'context': "(\"\", %i)" % int(position)}
-        elif err == "UnicodeDecodeError":
-            # UnicodeEncodeError
-            # 'ascii' codec can't encode characters in position 130: ordinal
-            # not in range(128)
-            match = re.search(r'position (\d+)$', msg)
-            if match:
-                position = match.groups()[0]
-                tval = {'context': "(\"\", %i)" % int(position)}
-        else:
-            for element in detail.split(' '):
-                element = element.strip()
-                if not element:
-                    continue
-                if "=" in element:
-                    key, value = element.split('=')
-                    stripped_comma = value[-1] == ","
-                    value = value.rstrip(',')
-                    tval[key] = value
-                else:
-                    if stripped_comma:
-                        element = ", " + element
-                    stripped_comma = False
-                    tval[key] += element
-
-    return err, msg, tval
-
-
 def save_style_to_tempfile(in_dict):
     """
     Take a dictionary of yapf style settings and return the file
@@ -105,57 +46,16 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
     def is_enabled(self):
         return is_python(self.view)
 
-    view = None
     encoding = None
     debug = False
-
-    def smart_failure(self, in_failure):
-        """
-        Take a failure exception or the stderr from yapf
-        and try to extract useful information like what kind
-        of problem is it and where in your code the problem is.
-        """
-        err, msg, context_dict = failure_parser(in_failure, self.encoding)
-
-        sublime.error_message("{0}\n{1}\n\n{2}".format(err, msg, repr(
-            context_dict)))
-
-        if 'context' in context_dict:
-            #"('', (46,44))"
-            rowcol = context_dict['context'][1:-1]
-
-            # ignore the first arg
-            rowcol = rowcol[rowcol.find(',') + 1:].strip()
-            if rowcol[0] == "(":
-                rowcol = rowcol[1:-1]  # remove parens
-                row, col = rowcol.split(',')
-                col = int(col)
-                row = int(row)
-
-                point = self.view.text_point(row - 1, col - 1)
-                print('centering on row: %r, col: %r' % (row - 1, col - 1))
-            else:
-                point = int(rowcol)
-                print('centering on character index %r' % point)
-
-            # clear any existing pyyapf markers
-            #pyyapf_regions = self.view.get_regions(KEY)
-            self.view.erase_regions(KEY)
-
-            scope = "pyyapf"
-            region = self.view.line(point)
-            self.view.add_regions(KEY, [region], scope, "dot")
-            self.view.show_at_center(region)
-
-            if self.debug:
-                print(repr(in_failure))
 
     def encode_selection(self, selection):
         try:
             encoded = self.view.substr(selection).encode(self.encoding)
         except UnicodeEncodeError as err:
-            self.smart_failure(err)
-            return None
+            msg = "You may need to re-open this file with a different encoding. Current encoding is %r." % self.encoding
+            self.error("UnicodeEncodeError: %s\n\n%s", err, msg)
+            return
 
         self.indent = b""
         detected = False
@@ -261,22 +161,25 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
                                      cwd=cwd,
                                      env=env,
                                      startupinfo=startupinfo)
-            output, output_err = popen.communicate(encoded_selection)
+            encoded_output, encoded_err = popen.communicate(encoded_selection)
 
-            # handle errors (since yapf>=0.3: exit code 2 means changed, not error)
+            # handle errors (since yapf>=0.3, exit code 2 means changed, not error)
             if popen.returncode not in (0, 2):
-                try:
-                    self.smart_failure(output_err)
+                err = encoded_err.decode(self.encoding)
+                print('Error:\n%s', err)
 
-                # Catching too general exception
-                # pylint: disable=W0703
-                except Exception as err:
-                    print('Unable to parse error: %r' % err)
-                    output_err = output_err.decode(self.encoding)
-                    sublime.error_message(output_err)
+                # report error
+                err_lines = err.splitlines()
+                msg = err_lines[-1]
+                if 'InternalError' in msg:
+                    sublime.error_message(msg)
+                else:
+                    loc = err_lines[-4]
+                    loc = loc[loc.find('line'):].capitalize()
+                    sublime.error_message('%s (%s)' % (msg, loc))
             else:
-                output = output.decode(self.encoding)
-                self.replace_selection(edit, selection, output)
+                new_text = encoded_output.decode(self.encoding)
+                self.replace_selection(edit, selection, new_text)
 
             if style_filename:
                 os.unlink(style_filename)
