@@ -5,20 +5,19 @@
       // reformat entire file if no text is selected
       "use_entire_file_if_no_selection": true,
 
-      // add extra output to the console for debugging pyyapf/yapf behavior
-      "debug": false,
-
       // if no encoding is specified use this.  utf-8 is a good choice,
       // ascii is (much) more restrictive.  any of these should work:
       // https://docs.python.org/2/library/codecs.html#standard-encodings
       "default_encoding": "UTF-8",
 
-      // yapf style options
+      // custom yapf style options
+      //
+      // if commented out then yapf's default style will be used (PEP8)
+      /*
       "config": {
             // Determines which of the predefined styles this custom style is based on.
             "based_on_style": "pep8",
 
-/*
             // Align closing bracket with visual indentation.
             "ALIGN_CLOSING_BRACKET_WITH_VISUAL_INDENT": true,
 
@@ -138,6 +137,9 @@
 
             // The penalty of splitting the line around the 'and' and 'or' operators.
             "SPLIT_PENALTY_LOGICAL_OPERATOR": 300,
-*/
       },
+      */
+
+      // add extra output to the console for debugging pyyapf/yapf behavior
+      "debug": false,
 }

@@ -218,21 +218,41 @@ class YapfCommand(sublime_plugin.TextCommand):
                 py_filename = self.save_selection_to_tempfile(selection)
 
                 if py_filename:
-                    style_filename = save_style_to_tempfile(
-                        settings.get("config", {}))
+                    # determine yapf command
+                    cmd = settings.get("yapf_command")
+                    assert cmd, "yapf_command not configured"
+                    cmd = os.path.expanduser(cmd)
+                    args = [cmd]
 
-                    yapf = os.path.expanduser(
-                        settings.get("yapf_command", "/usr/local/bin/yapf"))
+                    # verify reformatted code
+                    args += ["--verify"]
 
-                    cmd = [yapf, "--style={0}".format(style_filename),
-                           "--verify", "--in-place", py_filename]
+                    # override style?
+                    if settings.has('config'):
+                        style_filename = save_style_to_tempfile(settings.get(
+                            "config", {}))
+                        args += ["--style={0}".format(style_filename)]
 
-                    print('Running {0}'.format(cmd))
-                    environment = os.environ.copy()
-                    environment['LANG'] = self.encoding
-                    proc = subprocess.Popen(cmd,
+                        if self.debug:
+                            print('Using custom style:')
+                            with open(style_filename) as file_handle:
+                                print(file_handle.read())
+                    else:
+                        style_filename = None
+
+                    # add target file
+                    args += ["--in-place", py_filename]
+
+                    # specify encoding in environment
+                    env = os.environ.copy()
+                    env['LANG'] = self.encoding
+
+                    print('Running {0}'.format(args))
+                    if self.debug:
+                        print('Environment: {0}'.format(env))
+                    proc = subprocess.Popen(args,
                                             stderr=subprocess.PIPE,
-                                            env=environment)
+                                            env=env)
 
                     output, output_err = proc.communicate()
 
@@ -257,12 +277,9 @@ class YapfCommand(sublime_plugin.TextCommand):
                                 output_err = output_err.decode()
                             sublime.error_message(output_err)
 
-                    if self.debug:
-                        with open(style_filename) as file_handle:
-                            print(file_handle.read())
-
+                    if style_filename:
+                        os.unlink(style_filename)
                     os.unlink(py_filename)
-                os.unlink(style_filename)
 
         print('restoring cursor to ', region, repr(region))
         self.view.show_at_center(region)
