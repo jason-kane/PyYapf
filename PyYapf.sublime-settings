@@ -18,6 +18,7 @@
             // Determines which of the predefined styles this custom style is based on.
             "based_on_style": "pep8",
 
+/*
             // Align closing bracket with visual indentation.
             "ALIGN_CLOSING_BRACKET_WITH_VISUAL_INDENT": true,
 
@@ -137,5 +138,6 @@
 
             // The penalty of splitting the line around the 'and' and 'or' operators.
             "SPLIT_PENALTY_LOGICAL_OPERATOR": 300,
+*/
       },
 }
