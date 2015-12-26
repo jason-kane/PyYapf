@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Sublime Text 3 Plugin to invoke Yapf on a python file.
+Sublime Text 3 Plugin to invoke YAPF on a Python file.
 """
-import codecs
+import configparser
 import os
 import subprocess
 import sys
 import tempfile
-import configparser
 import textwrap
 
 import sublime
@@ -187,7 +186,7 @@ class Yapf:
             # attempt to highlight line where error occurred
             rel_line = parse_error_line(err_lines)
             if rel_line:
-                line, col = self.view.rowcol(selection.begin())
+                line = self.view.rowcol(selection.begin())[0]
                 pt = self.view.text_point(line + rel_line - 1, 0)
                 region = self.view.line(pt)
                 self.view.add_regions(KEY, [region], KEY, 'cross',
@@ -219,7 +218,6 @@ def is_python(view):
     return view.score_selector(0, 'source.python') > 0
 
 
-# pylint: disable=W0232
 class YapfSelectionCommand(sublime_plugin.TextCommand):
     """
     The "yapf_selection" command formats the current selection (or the entire
@@ -246,7 +244,6 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
                 yapf.format(s, edit)
 
 
-# pylint: disable=W0232
 class YapfDocumentCommand(sublime_plugin.TextCommand):
     """
     The "yapf_document" command formats the current document.
@@ -261,7 +258,7 @@ class YapfDocumentCommand(sublime_plugin.TextCommand):
 
 
 class EventListener(sublime_plugin.EventListener):
-    def on_pre_save(self, view):
+    def on_pre_save(self, view):  # pylint: disable=no-self-use
         settings = sublime.load_settings("PyYapf.sublime-settings")
         if settings.get('on_save'):
             view.run_command('yapf_document')
