@@ -19,7 +19,9 @@ To automatically run YAPF on the current document before saving, use the `on_sav
 
 3.  `Ctrl-Shift-P` (Mac: `Cmd-Shift-P`) and choose "Package Control: Install Package".
 
-4.  Find PyYapf in the list (type in a few characters and you should see it).
+4.  Find "PyYapf Python Formatter" in the list (type in a few characters and you should see it).
+
+Alternatively, install manually by cloning this repository into a folder named `PyYapf Python Formatter` in Sublime's `Packages` folder.
 
 ##Problems?
 
