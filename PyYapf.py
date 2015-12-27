@@ -238,6 +238,12 @@ class Yapf:
         text = indent_text(text, indent, trailing_nl)
         self.view.replace(edit, selection, text)
 
+        # return region containing modified text
+        if selection.a <= selection.b:
+            return sublime.Region(selection.a, selection.a + len(text))
+        else:
+            return sublime.Region(selection.b + len(text), selection.b)
+
     def debug(self, msg, *args):
         if self.settings.get('debug'):
             print('PyYapf:', msg % args)
