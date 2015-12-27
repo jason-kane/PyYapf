@@ -15,7 +15,7 @@
                             {
                                 "caption": "Settings – Default",
                                 "args": {
-                                    "file": "${packages}/PyYapf/PyYapf.sublime-settings"
+                                    "file": "${packages}/PyYapf Python Formatter/PyYapf.sublime-settings"
                                 },
                                 "command": "open_file"
                             },
