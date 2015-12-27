@@ -190,13 +190,19 @@ class Yapf:
 
         # run yapf
         self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
-        popen = subprocess.Popen(self.popen_args,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,
-                                 stdin=subprocess.PIPE,
-                                 cwd=self.popen_cwd,
-                                 env=self.popen_env,
-                                 startupinfo=self.popen_startupinfo)
+        try:
+            popen = subprocess.Popen(self.popen_args,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE,
+                                     stdin=subprocess.PIPE,
+                                     cwd=self.popen_cwd,
+                                     env=self.popen_env,
+                                     startupinfo=self.popen_startupinfo)
+        except OSError as err:
+            msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
+            sublime.error_message("OSError: %s\n\n%s" %
+                                  (err, msg))  # always show error popup
+            return
         encoded_output, encoded_err = popen.communicate(encoded_text)
         self.debug('Exit code %d', popen.returncode)
 
