@@ -262,6 +262,51 @@ def is_python(view):
     return view.score_selector(0, 'source.python') > 0
 
 
+if not SUBLIME_3:
+
+    class PreserveView:
+        """
+        This context manager assists in preserving the selection and view
+        when text is replaced.
+        """
+
+        def __init__(self, view):
+            self.view = view
+
+        def __enter__(self):
+            # save selection and view
+            self.sel = list(self.view.sel())
+            self.visible_region_begin = self.view.visible_region().begin()
+            self.viewport_position = self.view.viewport_position()
+            return self
+
+        def __exit__(self, type, value, traceback):
+            # restore selection
+            self.view.sel().clear()
+            for s in self.sel:
+                self.view.sel().add(s)
+
+            # restore view (this is somewhat cargo cultish, not sure why a single statement does not suffice)
+            self.view.show(self.visible_region_begin)
+            self.view.set_viewport_position(self.viewport_position)
+else:
+
+    class PreserveView:
+        """
+        Dummy context manager (Sublime Text 3 does a good job preserving
+        cursor and view when text is replaced).
+        """
+
+        def __init__(self, view):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, type, value, traceback):
+            pass
+
+
 class YapfSelectionCommand(sublime_plugin.TextCommand):
     """
     The "yapf_selection" command formats the current selection (or the entire
@@ -283,9 +328,12 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
             return
 
         # otherwise format all (non-empty) ones
-        for s in self.view.sel():
-            if not s.empty():
-                yapf.format(s, edit)
+        with PreserveView(self.view) as pv:
+            pv.sel = []
+            for s in self.view.sel():
+                if not s.empty():
+                    new_s = yapf.format(s, edit)
+                    pv.sel.append(new_s if new_s else s)
 
 
 class YapfDocumentCommand(sublime_plugin.TextCommand):
@@ -297,8 +345,9 @@ class YapfDocumentCommand(sublime_plugin.TextCommand):
         return is_python(self.view)
 
     def run(self, edit):
-        s = sublime.Region(0, self.view.size())
-        Yapf(self.view).format(s, edit)
+        with PreserveView(self.view):
+            s = sublime.Region(0, self.view.size())
+            Yapf(self.view).format(s, edit)
 
 
 class EventListener(sublime_plugin.EventListener):
