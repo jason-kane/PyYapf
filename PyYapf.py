@@ -1,293 +1,264 @@
 # -*- coding: utf-8 -*-
 """
-Sublime Text 2/3 Plugin to invoke Yapf on a python file.
+Sublime Text 3 Plugin to invoke YAPF on a Python file.
 """
-try:
-    from ConfigParser import RawConfigParser
-except ImportError:
-    from configparser import RawConfigParser
-
-import codecs
+import configparser
 import os
-import re
 import subprocess
 import sys
 import tempfile
+import textwrap
 
-import sublime, sublime_plugin
+import sublime
+import sublime_plugin
 
-PY3 = (sys.version_info[0] >= 3)
 KEY = "pyyapf"
 
 
-def failure_parser(in_failure, encoding):
-    """
-    Parse the last line of a yapf traceback into something
-    we can use (preferable row/column)
-    """
-    if isinstance(in_failure, UnicodeEncodeError):
-        # so much easier when we have the actual exception
-        err = in_failure.reason
-        msg = in_failure.message
-
-        msg = ("\nYou may need to re-open this file with a different"
-               " encoding.  Current encoding is %r" % encoding)
-
-        tval = {'context': "(\"\", %i)" % in_failure.start}
-    else:
-        # we got a string error from yapf
-        #
-        print('YAPF exception: %s' % in_failure)
-        if PY3:
-            in_failure = in_failure.decode()
-        lastline = in_failure.strip().split('\n')[-1]
-        err, msg = lastline.split(':')[0:2]
-        detail = ":".join(lastline.strip().split(':')[2:])
-        tval = {}
-        stripped_comma = False
-        key = None
-
-        if err == "UnicodeEncodeError":
-            # UnicodeEncodeError
-            # 'ascii' codec can't encode characters in position 175337-175339
-            # ordinal not in range(128)
-            position = msg.split('-')[-1]
-            tval = {'context': "(\"\", %i)" % int(position)}
-        elif err == "UnicodeDecodeError":
-            # UnicodeEncodeError
-            # 'ascii' codec can't encode characters in position 130: ordinal
-            # not in range(128)
-            match = re.search(r'position (\d+)$', msg)
-            if match:
-                position = match.groups()[0]
-                tval = {'context': "(\"\", %i)" % int(position)}
-        else:
-            for element in detail.split(' '):
-                element = element.strip()
-                if not element:
-                    continue
-                if "=" in element:
-                    key, value = element.split('=')
-                    stripped_comma = value[-1] == ","
-                    value = value.rstrip(',')
-                    tval[key] = value
-                else:
-                    if stripped_comma:
-                        element = ", " + element
-                    stripped_comma = False
-                    tval[key] += element
-
-    return err, msg, tval
-
-
-def save_style_to_tempfile(in_dict):
-    """
-    Take a dictionary of yapf style settings and return the file
-    name of a tempfile containing the expected config formatted
-    style settings
-    """
-
-    cfg = RawConfigParser()
+def save_style_to_tempfile(style):
+    # build config object
+    cfg = configparser.RawConfigParser()
     cfg.add_section('style')
-    for key in in_dict:
-        cfg.set('style', key, in_dict[key])
+    for key, value in style.items():
+        cfg.set('style', key, value)
 
-    fobj, filename = tempfile.mkstemp()
+    # dump it to temporary file
+    fobj, fname = tempfile.mkstemp()
     cfg.write(os.fdopen(fobj, "w"))
-    return filename
+    return fname
 
 
-# pylint: disable=W0232
-class YapfCommand(sublime_plugin.TextCommand):
+def dedent_text(text):
+    new_text = textwrap.dedent(text)
+
+    # determine original indentation
+    old_first = text.splitlines()[0]
+    new_first = new_text.splitlines()[0]
+    assert old_first.endswith(new_first), 'PyYapf: Dedent logic flawed'
+    indent = old_first[:len(old_first) - len(new_first)]
+
+    # determine if have trailing newline (when using the "yapf_selection"
+    # command, it can happen that there is none)
+    trailing_nl = text.endswith('\n')
+
+    return new_text, indent, trailing_nl
+
+
+def indent_text(text, indent, trailing_nl):
+    # reindent
+    text = textwrap.indent(text, indent)
+
+    # remove trailing newline if so desired
+    if not trailing_nl and text.endswith('\n'):
+        text = text[:-1]
+
+    return text
+
+
+def parse_error_line(err_lines):
     """
-    This is the actual class instantated by Sublime when
-    the command 'yapf' is invoked.
+    Parse YAPF output to determine line on which error occurred.
     """
-    view = None
-    encoding = None
-    debug = False
+    msg = err_lines[-1]
 
-    def smart_failure(self, in_failure):
-        """
-        Take a failure exception or the stderr from yapf
-        and try to extract useful information like what kind
-        of problem is it and where in your code the problem is.
-        """
-        err, msg, context_dict = failure_parser(in_failure, self.encoding)
+    # yapf.yapflib.verifier.InternalError: Missing parentheses in call to 'print' (<string>, line 2)
+    if '(<string>, line ' in msg:
+        return int(msg.rstrip(')').rsplit(maxsplit=1)[1]) + 1
 
-        sublime.error_message("{0}\n{1}\n\n{2}".format(err, msg, repr(
-            context_dict)))
+    # lib2to3.pgen2.tokenize.TokenError: ('EOF in multi-line statement', (5, 0))
+    if msg.endswith('))'):
+        return int(msg.rstrip(')').rsplit(maxsplit=2)[1].strip(',('))
 
-        if 'context' in context_dict:
-            #"('', (46,44))"
-            rowcol = context_dict['context'][1:-1]
+    #   File "<unknown>", line 3
+    #     if:
+    #       ^
+    # SyntaxError: invalid syntax
+    if len(err_lines) >= 4 and ', line' in err_lines[-4]:
+        return int(err_lines[-4].rsplit(maxsplit=1)[1])
 
-            # ignore the first arg
-            rowcol = rowcol[rowcol.find(',') + 1:].strip()
-            if rowcol[0] == "(":
-                rowcol = rowcol[1:-1]  # remove parens
-                row, col = rowcol.split(',')
-                col = int(col)
-                row = int(row)
 
-                point = self.view.text_point(row - 1, col - 1)
-                print('centering on row: %r, col: %r' % (row - 1, col - 1))
-            else:
-                point = int(rowcol)
-                print('centering on character index %r' % point)
+class Yapf:
+    """
+    This class wraps YAPF invocation, including encoding/decoding and error handling.
+    """
 
-            # clear any existing pyyapf markers
-            #pyyapf_regions = self.view.get_regions(KEY)
-            self.view.erase_regions(KEY)
+    def __init__(self, view):
+        self.settings = sublime.load_settings("PyYapf.sublime-settings")
+        self.view = view
 
-            scope = "pyyapf"
-            region = self.view.line(point)
-            self.view.add_regions(KEY, [region], scope, "dot")
-            self.view.show_at_center(region)
+        # determine encoding
+        self.encoding = self.view.encoding()
+        if self.encoding == 'Undefined':
+            self.encoding = self.settings.get('default_encoding')
+            self.debug('Encoding is not specified, falling back to default %r',
+                       self.encoding)
+        else:
+            self.debug('Encoding is %r', self.encoding)
 
-            if self.debug:
-                print(repr(in_failure))
+        # custom style options?
+        custom_style = self.settings.get("config")
+        if custom_style:
+            # write style file to temporary file
+            self.custom_style_fname = save_style_to_tempfile(custom_style)
+            self.debug('Using custom style (%s):\n%s', self.custom_style_fname,
+                       open(self.custom_style_fname).read().strip())
+        else:
+            self.custom_style_fname = None
 
-    def encode_selection(self, selection):
-        try:
-            encoded = self.view.substr(selection).encode(self.encoding)
-        except UnicodeEncodeError as err:
-            self.smart_failure(err)
-            return None
+        # prepare popen arguments
+        cmd = self.settings.get("yapf_command")
+        if not cmd:
+            msg = 'Yapf command not configured. Problem with settings?'
+            sublime.error_message(msg)
+            raise Exception(msg)
+        cmd = os.path.expanduser(cmd)
 
-        self.indent = b""
-        detected = False
-        unindented = []
-        for line in encoded.splitlines(keepends=True):
-            if not detected:
-                codeline = line.strip()
-                if len(codeline) > 0:
-                    self.indent, _, _ = line.partition(codeline)
-                    detected = True
-            unindented.append(line[len(self.indent):])
-        unindented = b''.join(unindented)
-        return unindented
+        self.popen_args = [cmd, '--verify']
+        if self.custom_style_fname:
+            self.popen_args += ['--style', self.custom_style_fname]
 
-    def replace_selection(self, edit, selection, output):
-        indent = self.indent.decode(self.encoding)
-        reindented = []
-        for line in output.splitlines():
-            reindented.append(indent + line + '\n')
-        self.view.replace(edit, selection, ''.join(reindented))
+        # use directory of current file so that custom styles are found properly
+        fname = self.view.file_name()
+        self.popen_cwd = os.path.dirname(fname) if fname else None
 
-    def run(self, edit):
+        # specify encoding in environment
+        self.popen_env = os.environ.copy()
+        self.popen_env['LANG'] = self.encoding
+
+        # win32: hide console window
+        if sys.platform in ('win32', 'cygwin'):
+            self.popen_startupinfo = subprocess.STARTUPINFO()
+            self.popen_startupinfo.dwFlags = subprocess.CREATE_NEW_CONSOLE | subprocess.STARTF_USESHOWWINDOW
+            self.popen_startupinfo.wShowWindow = subprocess.SW_HIDE
+        else:
+            self.popen_startupinfo = None
+
+        # clear marked regions and status
+        view.erase_regions(KEY)
+        view.erase_status(KEY)
+        self.errors = []
+
+    def __del__(self):
+        if self.custom_style_fname:
+            os.unlink(self.custom_style_fname)
+
+    def format(self, selection, edit):
         """
         primary action when the plugin is triggered
         """
-        print("Formatting selection with Yapf")
+        self.debug('Formatting selection %r', selection)
 
-        settings = sublime.load_settings("PyYapf.sublime-settings")
+        # retrieve selected text & dedent
+        text = self.view.substr(selection)
+        text, indent, trailing_nl = dedent_text(text)
+        self.debug('Detected indent %r', indent)
 
-        self.encoding = self.view.encoding()
+        # encode text
+        try:
+            encoded_text = text.encode(self.encoding)
+        except UnicodeEncodeError as err:
+            msg = "You may need to re-open this file with a different encoding. Current encoding is %r." % self.encoding
+            self.error("UnicodeEncodeError: %s\n\n%s", err, msg)
+            return
 
-        if self.encoding == "Undefined":
-            print('Encoding is not specified.')
-            self.encoding = settings.get('default_encoding')
+        # run yapf
+        self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
+        popen = subprocess.Popen(self.popen_args,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE,
+                                 stdin=subprocess.PIPE,
+                                 cwd=self.popen_cwd,
+                                 env=self.popen_env,
+                                 startupinfo=self.popen_startupinfo)
+        encoded_output, encoded_err = popen.communicate(encoded_text)
+        self.debug('Exit code %d', popen.returncode)
 
-        print('Using encoding of %r' % self.encoding)
+        # handle errors (since yapf>=0.3, exit code 2 means changed, not error)
+        if popen.returncode not in (0, 2):
+            err = encoded_err.decode(self.encoding).replace(os.linesep, '\n')
+            self.debug('Error:\n%s', err)
 
-        self.debug = settings.get('debug')
+            # report error
+            err_lines = err.splitlines()
+            msg = err_lines[-1]
+            self.error('%s', msg)
 
-        # there is always at least one region
-        for region in self.view.sel():
-            # determine selection to format
-            if region.empty():
-                if settings.get("use_entire_file_if_no_selection"):
-                    selection = sublime.Region(0, self.view.size())
-                else:
-                    sublime.error_message('A selection is required')
-                    continue
-            else:
-                selection = region
+            # attempt to highlight line where error occurred
+            rel_line = parse_error_line(err_lines)
+            if rel_line:
+                line = self.view.rowcol(selection.begin())[0]
+                pt = self.view.text_point(line + rel_line - 1, 0)
+                region = self.view.line(pt)
+                self.view.add_regions(KEY, [region], KEY, 'cross',
+                                      sublime.DRAW_NO_FILL
+                                      | sublime.DRAW_NO_OUTLINE
+                                      | sublime.DRAW_SQUIGGLY_UNDERLINE)
+            return
 
-            # encode selection
-            encoded_selection = self.encode_selection(selection)
-            if not encoded_selection:
-                continue
+        # decode text, reindent, and apply
+        text = encoded_output.decode(self.encoding).replace(os.linesep, '\n')
+        text = indent_text(text, indent, trailing_nl)
+        self.view.replace(edit, selection, text)
 
-            # determine yapf command
-            cmd = settings.get("yapf_command")
-            assert cmd, "yapf_command not configured"
-            cmd = os.path.expanduser(cmd)
-            args = [cmd]
+    def debug(self, msg, *args):
+        if self.settings.get('debug'):
+            print('PyYapf:', msg % args)
 
-            # verify reformatted code
-            args += ["--verify"]
+    def error(self, msg, *args):
+        msg = msg % args
 
-            # override style?
-            if settings.has('config'):
-                custom_style = settings.get("config")
-                style_filename = save_style_to_tempfile(custom_style)
-                args += ["--style={0}".format(style_filename)]
+        # add to status bar
+        self.errors.append(msg)
+        self.view.set_status(KEY, 'PyYapf: %s' % ', '.join(self.errors))
+        if self.settings.get('popup_errors'):
+            sublime.error_message(msg)
 
-                if self.debug:
-                    print('Using custom style:')
-                    with open(style_filename) as file_handle:
-                        print(file_handle.read())
-            else:
-                style_filename = None
 
-            # use directory of current file so that custom styles are found properly
-            fname = self.view.file_name()
-            cwd = os.path.dirname(fname) if fname else None
+def is_python(view):
+    return view.score_selector(0, 'source.python') > 0
 
-            # specify encoding in environment
-            env = os.environ.copy()
-            env['LANG'] = self.encoding
 
-            # win32: hide console window
-            if sys.platform in ('win32', 'cygwin'):
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags = subprocess.CREATE_NEW_CONSOLE | subprocess.STARTF_USESHOWWINDOW
-                startupinfo.wShowWindow = subprocess.SW_HIDE
-            else:
-                startupinfo = None
-
-            # run yapf
-            print('Running {0} in {1}'.format(args, cwd))
-            if self.debug:
-                print('Environment: {0}'.format(env))
-            popen = subprocess.Popen(args,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-                                     stdin=subprocess.PIPE,
-                                     cwd=cwd,
-                                     env=env,
-                                     startupinfo=startupinfo)
-            output, output_err = popen.communicate(encoded_selection)
-
-            # handle errors (since yapf>=0.3: exit code 2 means changed, not error)
-            if popen.returncode not in (0, 2):
-                try:
-                    if not PY3:
-                        output_err = output_err.encode(self.encoding)
-                    self.smart_failure(output_err)
-
-                # Catching too general exception
-                # pylint: disable=W0703
-                except Exception as err:
-                    print('Unable to parse error: %r' % err)
-                    if PY3:
-                        output_err = output_err.decode()
-                    sublime.error_message(output_err)
-            else:
-                output = output.decode(self.encoding)
-                self.replace_selection(edit, selection, output)
-
-            if style_filename:
-                os.unlink(style_filename)
-
-        # restore cursor
-        print('restoring cursor to ', region, repr(region))
-        self.view.show_at_center(region)
-
-        print('PyYapf Completed')
+class YapfSelectionCommand(sublime_plugin.TextCommand):
+    """
+    The "yapf_selection" command formats the current selection (or the entire
+    document if the "use_entire_file_if_no_selection" option is enabled).
+    """
 
     def is_enabled(self):
-        is_python = self.view.score_selector(0, 'source.python') > 0
-        return is_python
+        return is_python(self.view)
+
+    def run(self, edit):
+        yapf = Yapf(self.view)
+
+        # empty selection?
+        if all(s.empty() for s in self.view.sel()):
+            if yapf.settings.get("use_entire_file_if_no_selection"):
+                self.view.run_command('yapf_document')
+            else:
+                sublime.error_message('A selection is required')
+            return
+
+        # otherwise format all (non-empty) ones
+        for s in self.view.sel():
+            if not s.empty():
+                yapf.format(s, edit)
+
+
+class YapfDocumentCommand(sublime_plugin.TextCommand):
+    """
+    The "yapf_document" command formats the current document.
+    """
+
+    def is_enabled(self):
+        return is_python(self.view)
+
+    def run(self, edit):
+        s = sublime.Region(0, self.view.size())
+        Yapf(self.view).format(s, edit)
+
+
+class EventListener(sublime_plugin.EventListener):
+    def on_pre_save(self, view):  # pylint: disable=no-self-use
+        settings = sublime.load_settings("PyYapf.sublime-settings")
+        if settings.get('on_save'):
+            view.run_command('yapf_document')

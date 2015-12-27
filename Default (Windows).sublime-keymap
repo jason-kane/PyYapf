@@ -3,6 +3,6 @@
         "keys": [
             "ctrl+alt+f"
         ],
-        "command": "yapf"
+        "command": "yapf_selection"
     }
 ]
