@@ -6,5 +6,5 @@
     {
         "caption": "PyYapf: Format Document",
         "command": "yapf_document"
-    },
+    }
 ]
