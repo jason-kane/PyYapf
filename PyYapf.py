@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Sublime Text 3 Plugin to invoke YAPF on a Python file.
+Sublime Text 2-3 Plugin to invoke YAPF on a Python file.
 """
-import configparser
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
+
 import os
 import subprocess
 import sys
@@ -13,6 +17,29 @@ import sublime
 import sublime_plugin
 
 KEY = "pyyapf"
+
+if not hasattr(textwrap, 'indent'):
+    # backport from python 3.3 (https://hg.python.org/cpython/file/3.3/Lib/textwrap.py)
+    def indent(text, prefix, predicate=None):
+        """Adds 'prefix' to the beginning of selected lines in 'text'.
+        If 'predicate' is provided, 'prefix' will only be added to the lines
+        where 'predicate(line)' is True. If 'predicate' is not provided,
+        it will default to adding 'prefix' to all non-empty lines that do not
+        consist solely of whitespace characters.
+        """
+
+        if predicate is None:
+
+            def predicate(line):
+                return line.strip()
+
+        def prefixed_lines():
+            for line in text.splitlines(True):
+                yield (prefix + line if predicate(line) else line)
+
+        return ''.join(prefixed_lines())
+
+    textwrap.indent = indent
 
 
 def save_style_to_tempfile(style):
