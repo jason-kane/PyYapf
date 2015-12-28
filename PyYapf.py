@@ -213,8 +213,10 @@ class Yapf:
                                       (err, msg))  # always show error popup
                 return
             encoded_output, encoded_err = popen.communicate(encoded_text)
+            text = encoded_output.decode(self.encoding).replace(os.linesep,
+                                                                '\n')
         else:
-            # do _not_ use stdin.  This avoids a unicode defect in yapf.  Once yapf is 
+            # do _not_ use stdin.  This avoids a unicode defect in yapf.  Once yapf is
             # fixed everything in this else clause should be removed.
             file_obj, temp_filename = tempfile.mkstemp(suffix=".py")
             temp_handle = os.fdopen(file_obj, 'wb' if SUBLIME_3 else 'w')
@@ -247,8 +249,10 @@ class Yapf:
                 with codecs.open(temp_filename, encoding=self.encoding) as h:
                     encoded_output = h.read()
 
+            text = encoded_output.replace(os.linesep, '\n')
             os.unlink(temp_filename)
 
+        text = indent_text(text, indent, trailing_nl)
         self.debug('Exit code %d', popen.returncode)
 
         # handle errors (since yapf>=0.3, exit code 2 means changed, not error)
@@ -270,9 +274,6 @@ class Yapf:
                 self.view.add_regions(KEY, [region], KEY, 'cross', ERROR_FLAGS)
             return
 
-        # decode text, reindent, and apply
-        text = encoded_output.decode(self.encoding).replace(os.linesep, '\n')
-        text = indent_text(text, indent, trailing_nl)
         self.view.replace(edit, selection, text)
 
         # return region containing modified text
