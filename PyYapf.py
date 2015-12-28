@@ -123,7 +123,7 @@ class Yapf:
 
         # determine encoding
         self.encoding = self.view.encoding()
-        if self.encoding == 'Undefined':
+        if self.encoding in ['Undefined', None]:
             self.encoding = self.settings.get('default_encoding')
             self.debug('Encoding is not specified, falling back to default %r',
                        self.encoding)
@@ -196,22 +196,63 @@ class Yapf:
             self.error("UnicodeEncodeError: %s\n\n%s", err, msg)
             return
 
-        # run yapf
-        self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
-        try:
-            popen = subprocess.Popen(self.popen_args,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-                                     stdin=subprocess.PIPE,
-                                     cwd=self.popen_cwd,
-                                     env=self.popen_env,
-                                     startupinfo=self.popen_startupinfo)
-        except OSError as err:
-            msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
-            sublime.error_message("OSError: %s\n\n%s" %
-                                  (err, msg))  # always show error popup
-            return
-        encoded_output, encoded_err = popen.communicate(encoded_text)
+        if self.settings.get("use_stdin", False):
+            # run yapf
+            self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
+            try:
+                popen = subprocess.Popen(self.popen_args,
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE,
+                                         stdin=subprocess.PIPE,
+                                         cwd=self.popen_cwd,
+                                         env=self.popen_env,
+                                         startupinfo=self.popen_startupinfo)
+            except OSError as err:
+                msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
+                sublime.error_message("OSError: %s\n\n%s" %
+                                      (err, msg))  # always show error popup
+                return
+            encoded_output, encoded_err = popen.communicate(encoded_text)
+            text = encoded_output.decode(self.encoding).replace(os.linesep,
+                                                                '\n')
+        else:
+            # do _not_ use stdin.  This avoids a unicode defect in yapf.  Once yapf is
+            # fixed everything in this else clause should be removed.
+            file_obj, temp_filename = tempfile.mkstemp(suffix=".py")
+            temp_handle = os.fdopen(file_obj, 'wb' if SUBLIME_3 else 'w')
+
+            temp_handle.write(encoded_text)
+            temp_handle.close()
+
+            self.popen_args += ["--in-place", temp_filename]
+
+            self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
+            try:
+                popen = subprocess.Popen(self.popen_args,
+                                         stderr=subprocess.PIPE,
+                                         cwd=self.popen_cwd,
+                                         env=self.popen_env,
+                                         startupinfo=self.popen_startupinfo)
+            except OSError as err:
+                msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
+                sublime.error_message("OSError: %s\n\n%s" %
+                                      (err, msg))  # always show error popup
+                return
+
+            stdout, encoded_err = popen.communicate()
+
+            if SUBLIME_3:
+                with open(temp_filename, encoding=self.encoding) as h:
+                    encoded_output = h.read()
+            else:
+                import codecs
+                with codecs.open(temp_filename, encoding=self.encoding) as h:
+                    encoded_output = h.read()
+
+            text = encoded_output.replace(os.linesep, '\n')
+            os.unlink(temp_filename)
+
+        text = indent_text(text, indent, trailing_nl)
         self.debug('Exit code %d', popen.returncode)
 
         # handle errors (since yapf>=0.3, exit code 2 means changed, not error)
@@ -233,9 +274,6 @@ class Yapf:
                 self.view.add_regions(KEY, [region], KEY, 'cross', ERROR_FLAGS)
             return
 
-        # decode text, reindent, and apply
-        text = encoded_output.decode(self.encoding).replace(os.linesep, '\n')
-        text = indent_text(text, indent, trailing_nl)
         self.view.replace(edit, selection, text)
 
         # return region containing modified text
