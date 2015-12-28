@@ -123,7 +123,7 @@ class Yapf:
 
         # determine encoding
         self.encoding = self.view.encoding()
-        if self.encoding == 'Undefined':
+        if self.encoding in ['Undefined', None]:
             self.encoding = self.settings.get('default_encoding')
             self.debug('Encoding is not specified, falling back to default %r',
                        self.encoding)
