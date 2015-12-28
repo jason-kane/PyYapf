@@ -239,8 +239,13 @@ class Yapf:
 
             stdout, encoded_err = popen.communicate()
 
-            with open(temp_filename) as h:
-                encoded_output = h.read()
+            if SUBLIME_3:
+                with open(temp_filename, encoding=self.encoding) as h:
+                    encoded_output = h.read()
+            else:
+                import codecs
+                with codecs.open(temp_filename, encoding=self.encoding) as h:
+                    encoded_output = h.read()
 
             os.unlink(temp_filename)
 
