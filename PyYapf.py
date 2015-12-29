@@ -247,9 +247,6 @@ class Yapf:
 
             os.unlink(temp_filename)
 
-        # post-process text
-        text = text.replace(os.linesep, '\n')
-        text = indent_text(text, indent, trailing_nl)
         self.debug('Exit code %d', popen.returncode)
 
         # handle errors (since yapf>=0.3, exit code 2 means changed, not error)
@@ -272,6 +269,12 @@ class Yapf:
                 self.view.add_regions(KEY, [region], KEY, 'cross', ERROR_FLAGS)
             return
 
+        # adjust newlines (only necessary when use_stdin is True, since io.open
+        # uses universal newlines by default)
+        text = text.replace(os.linesep, '\n')
+
+        # re-indent and replace text
+        text = indent_text(text, indent, trailing_nl)
         self.view.replace(edit, selection, text)
 
         # return region containing modified text
