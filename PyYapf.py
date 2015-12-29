@@ -212,8 +212,8 @@ class Yapf:
                 sublime.error_message("OSError: %s\n\n%s" %
                                       (err, msg))  # always show error popup
                 return
-            encoded_output, encoded_err = popen.communicate(encoded_text)
-            text = encoded_output.decode(self.encoding)
+            encoded_stdout, encoded_stderr = popen.communicate(encoded_text)
+            text = encoded_stdout.decode(self.encoding)
         else:
             # do _not_ use stdin.  This avoids a unicode defect in yapf.  Once yapf is
             # fixed everything in this else clause should be removed.
@@ -228,6 +228,7 @@ class Yapf:
             self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
             try:
                 popen = subprocess.Popen(self.popen_args,
+                                         stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE,
                                          cwd=self.popen_cwd,
                                          env=self.popen_env,
@@ -238,7 +239,7 @@ class Yapf:
                                       (err, msg))  # always show error popup
                 return
 
-            stdout, encoded_err = popen.communicate()
+            encoded_stdout, encoded_stderr = popen.communicate()
 
             if SUBLIME_3:
                 with open(temp_filename, encoding=self.encoding) as h:
@@ -257,11 +258,12 @@ class Yapf:
 
         # handle errors (since yapf>=0.3, exit code 2 means changed, not error)
         if popen.returncode not in (0, 2):
-            err = encoded_err.decode(self.encoding).replace(os.linesep, '\n')
-            self.debug('Error:\n%s', err)
+            stderr = encoded_stderr.decode(self.encoding)
+            stderr = stderr.replace(os.linesep, '\n')
+            self.debug('Error:\n%s', stderr)
 
             # report error
-            err_lines = err.splitlines()
+            err_lines = stderr.splitlines()
             msg = err_lines[-1]
             self.error('%s', msg)
 
