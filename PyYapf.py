@@ -197,7 +197,8 @@ class Yapf:
             self.error("UnicodeEncodeError: %s\n\n%s", err, msg)
             return
 
-        if self.settings.get("use_stdin", False):
+        # pass source code to be formatted on stdin?
+        if self.settings.get("use_stdin"):
             # run yapf
             self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
             try:
@@ -216,11 +217,11 @@ class Yapf:
             encoded_stdout, encoded_stderr = popen.communicate(encoded_text)
             text = encoded_stdout.decode(self.encoding)
         else:
-            # do _not_ use stdin.  This avoids a unicode defect in yapf.  Once yapf is
-            # fixed everything in this else clause should be removed.
+            # do _not_ use stdin.  this avoids a unicode defect in yapf, see
+            # https://github.com/google/yapf/pull/145.  once yapf is fixed
+            # we may remove the use_stdin option and this code.
             file_obj, temp_filename = tempfile.mkstemp(suffix=".py")
             temp_handle = os.fdopen(file_obj, 'wb' if SUBLIME_3 else 'w')
-
             temp_handle.write(encoded_text)
             temp_handle.close()
 
