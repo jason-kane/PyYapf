@@ -8,7 +8,6 @@ try:
 except ImportError:
     import ConfigParser as configparser
 
-import io
 import os
 import subprocess
 import sys
@@ -245,7 +244,13 @@ class Yapf:
 
                 encoded_stdout, encoded_stderr = popen.communicate()
 
-                with io.open(temp_filename, encoding=self.encoding) as fp:
+                if SUBLIME_3:
+                    open_encoded = open
+                else:
+                    import codecs
+                    open_encoded = codecs.open
+
+                with open_encoded(temp_filename, encoding=self.encoding) as fp:
                     text = fp.read()
             finally:
                 os.unlink(temp_filename)
