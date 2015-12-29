@@ -277,8 +277,8 @@ class Yapf:
                 self.view.add_regions(KEY, [region], KEY, 'cross', ERROR_FLAGS)
             return
 
-        # adjust newlines (only necessary when use_stdin is True, since io.open
-        # uses universal newlines by default)
+        # adjust newlines (only necessary when use_stdin is True, since
+        # [codecs.]open uses universal newlines by default)
         text = text.replace(os.linesep, '\n')
 
         # re-indent and replace text
