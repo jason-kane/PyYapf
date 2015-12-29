@@ -143,6 +143,7 @@ class Yapf:
         # prepare popen arguments
         cmd = self.settings.get("yapf_command")
         if not cmd:
+            # always show error in popup
             msg = 'Yapf command not configured. Problem with settings?'
             sublime.error_message(msg)
             raise Exception(msg)
@@ -196,7 +197,8 @@ class Yapf:
             self.error("UnicodeEncodeError: %s\n\n%s", err, msg)
             return
 
-        if self.settings.get("use_stdin", False):
+        # pass source code to be formatted on stdin?
+        if self.settings.get("use_stdin"):
             # run yapf
             self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
             try:
@@ -208,60 +210,61 @@ class Yapf:
                                          env=self.popen_env,
                                          startupinfo=self.popen_startupinfo)
             except OSError as err:
+                # always show error in popup
                 msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
-                sublime.error_message("OSError: %s\n\n%s" %
-                                      (err, msg))  # always show error popup
+                sublime.error_message("OSError: %s\n\n%s" % (err, msg))
                 return
-            encoded_output, encoded_err = popen.communicate(encoded_text)
-            text = encoded_output.decode(self.encoding).replace(os.linesep,
-                                                                '\n')
+            encoded_stdout, encoded_stderr = popen.communicate(encoded_text)
+            text = encoded_stdout.decode(self.encoding)
         else:
-            # do _not_ use stdin.  This avoids a unicode defect in yapf.  Once yapf is
-            # fixed everything in this else clause should be removed.
+            # do _not_ use stdin.  this avoids a unicode defect in yapf, see
+            # https://github.com/google/yapf/pull/145.  once yapf is fixed
+            # we may remove the use_stdin option and this code.
             file_obj, temp_filename = tempfile.mkstemp(suffix=".py")
-            temp_handle = os.fdopen(file_obj, 'wb' if SUBLIME_3 else 'w')
-
-            temp_handle.write(encoded_text)
-            temp_handle.close()
-
-            self.popen_args += ["--in-place", temp_filename]
-
-            self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
             try:
-                popen = subprocess.Popen(self.popen_args,
-                                         stderr=subprocess.PIPE,
-                                         cwd=self.popen_cwd,
-                                         env=self.popen_env,
-                                         startupinfo=self.popen_startupinfo)
-            except OSError as err:
-                msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
-                sublime.error_message("OSError: %s\n\n%s" %
-                                      (err, msg))  # always show error popup
-                return
+                temp_handle = os.fdopen(file_obj, 'wb' if SUBLIME_3 else 'w')
+                temp_handle.write(encoded_text)
+                temp_handle.close()
+                self.popen_args += ["--in-place", temp_filename]
 
-            stdout, encoded_err = popen.communicate()
+                self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
+                try:
+                    popen = subprocess.Popen(
+                        self.popen_args,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        cwd=self.popen_cwd,
+                        env=self.popen_env,
+                        startupinfo=self.popen_startupinfo)
+                except OSError as err:
+                    # always show error in popup
+                    msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
+                    sublime.error_message("OSError: %s\n\n%s" % (err, msg))
+                    return
 
-            if SUBLIME_3:
-                with open(temp_filename, encoding=self.encoding) as h:
-                    encoded_output = h.read()
-            else:
-                import codecs
-                with codecs.open(temp_filename, encoding=self.encoding) as h:
-                    encoded_output = h.read()
+                encoded_stdout, encoded_stderr = popen.communicate()
 
-            text = encoded_output.replace(os.linesep, '\n')
-            os.unlink(temp_filename)
+                if SUBLIME_3:
+                    open_encoded = open
+                else:
+                    import codecs
+                    open_encoded = codecs.open
 
-        text = indent_text(text, indent, trailing_nl)
+                with open_encoded(temp_filename, encoding=self.encoding) as fp:
+                    text = fp.read()
+            finally:
+                os.unlink(temp_filename)
+
         self.debug('Exit code %d', popen.returncode)
 
         # handle errors (since yapf>=0.3, exit code 2 means changed, not error)
         if popen.returncode not in (0, 2):
-            err = encoded_err.decode(self.encoding).replace(os.linesep, '\n')
-            self.debug('Error:\n%s', err)
+            stderr = encoded_stderr.decode(self.encoding)
+            stderr = stderr.replace(os.linesep, '\n')
+            self.debug('Error:\n%s', stderr)
 
             # report error
-            err_lines = err.splitlines()
+            err_lines = stderr.splitlines()
             msg = err_lines[-1]
             self.error('%s', msg)
 
@@ -274,6 +277,12 @@ class Yapf:
                 self.view.add_regions(KEY, [region], KEY, 'cross', ERROR_FLAGS)
             return
 
+        # adjust newlines (only necessary when use_stdin is True, since
+        # [codecs.]open uses universal newlines by default)
+        text = text.replace(os.linesep, '\n')
+
+        # re-indent and replace text
+        text = indent_text(text, indent, trailing_nl)
         self.view.replace(edit, selection, text)
 
         # return region containing modified text
