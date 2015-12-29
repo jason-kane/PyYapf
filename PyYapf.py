@@ -213,8 +213,7 @@ class Yapf:
                                       (err, msg))  # always show error popup
                 return
             encoded_output, encoded_err = popen.communicate(encoded_text)
-            text = encoded_output.decode(self.encoding).replace(os.linesep,
-                                                                '\n')
+            text = encoded_output.decode(self.encoding)
         else:
             # do _not_ use stdin.  This avoids a unicode defect in yapf.  Once yapf is
             # fixed everything in this else clause should be removed.
@@ -243,15 +242,16 @@ class Yapf:
 
             if SUBLIME_3:
                 with open(temp_filename, encoding=self.encoding) as h:
-                    encoded_output = h.read()
+                    text = h.read()
             else:
                 import codecs
                 with codecs.open(temp_filename, encoding=self.encoding) as h:
-                    encoded_output = h.read()
+                    text = h.read()
 
-            text = encoded_output.replace(os.linesep, '\n')
             os.unlink(temp_filename)
 
+        # post-process text
+        text = text.replace(os.linesep, '\n')
         text = indent_text(text, indent, trailing_nl)
         self.debug('Exit code %d', popen.returncode)
 
