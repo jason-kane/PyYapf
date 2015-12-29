@@ -17,6 +17,9 @@ import textwrap
 import sublime
 import sublime_plugin
 
+# make sure we don't choke on unicode when we reformat ourselves
+u"我爱蟒蛇"
+
 SUBLIME_3 = sys.version_info >= (3, 0)
 KEY = "pyyapf"
 
