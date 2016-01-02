@@ -62,6 +62,8 @@ def save_style_to_tempfile(style):
 
 def dedent_text(text):
     new_text = textwrap.dedent(text)
+    if not new_text:
+        return new_text, '', False
 
     # determine original indentation
     old_first = text.splitlines()[0]
