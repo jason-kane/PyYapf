@@ -156,7 +156,7 @@ class Yapf:
             raise Exception(msg)
         cmd = os.path.expanduser(cmd)
 
-        self.popen_args = [cmd, '--verify']
+        self.popen_args = [cmd]
         if self.custom_style_fname:
             self.popen_args += ['--style', self.custom_style_fname]
 
