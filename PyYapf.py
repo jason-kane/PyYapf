@@ -166,7 +166,7 @@ class Yapf:
 
         # specify encoding in environment
         self.popen_env = os.environ.copy()
-        self.popen_env['LANG'] = self.encoding
+        self.popen_env['LANG'] = str(self.encoding)
 
         # win32: hide console window
         if sys.platform in ('win32', 'cygwin'):
