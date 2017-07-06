@@ -8,7 +8,7 @@ By default, press `Ctrl-Alt-F` to format the current selection (or the entire do
 You can also `Ctrl-Shift-P` (Mac: `Cmd-Shift-P`) and select "PyYapf: Format Selection" or "PyYapf: Format Document".
 To automatically run YAPF on the current document before saving, use the `on_save` setting.
 
-##Installation
+## Installation
 
 1.  Install YAPF (if you haven't already):
    ```
@@ -25,12 +25,12 @@ Alternatively, install manually by navigating to Sublime's `Packages` folder and
 
       git clone https://github.com/jason-kane/PyYapf.git "PyYapf Python Formatter"
 
-##Problems?
+## Problems?
 
 This makes it pretty easy to find valid python code that makes Yapf choke or give bad formatting.
 Please try to reduce any problems to a minimal example and [let the YAPF folks know](https://github.com/google/yapf/issues).
 If there is something wrong with this plugin, [add an issue](https://github.com/jason-kane/PyYapf/issues) on GitHub and I'll try to address it.
 
-##LICENSE
+## LICENSE
 
 Apache v2 per LICENSE.  Do what you want; if you fix something please share it.
