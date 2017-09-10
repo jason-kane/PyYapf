@@ -156,7 +156,8 @@ class Yapf:
             sublime.error_message(msg)
             raise Exception(msg)
         cmd = os.path.expanduser(cmd)
-        cmd = sublime.expand_variables(cmd, sublime.active_window().extract_variables())
+        cmd = sublime.expand_variables(
+            cmd, sublime.active_window().extract_variables())
 
         self.popen_args = [cmd]
         if self.custom_style_fname:
@@ -216,13 +217,14 @@ class Yapf:
             # run yapf
             self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
             try:
-                popen = subprocess.Popen(self.popen_args,
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE,
-                                         stdin=subprocess.PIPE,
-                                         cwd=self.popen_cwd,
-                                         env=self.popen_env,
-                                         startupinfo=self.popen_startupinfo)
+                popen = subprocess.Popen(
+                    self.popen_args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    stdin=subprocess.PIPE,
+                    cwd=self.popen_cwd,
+                    env=self.popen_env,
+                    startupinfo=self.popen_startupinfo)
             except OSError as err:
                 # always show error in popup
                 msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
@@ -320,6 +322,7 @@ class Yapf:
 
     def get_setting(self, key, default_value=None):
         return get_setting(self.view, key, default_value)
+
 
 def is_python(view):
     return view.score_selector(0, 'source.python') > 0
