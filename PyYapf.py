@@ -23,8 +23,8 @@ u"我爱蟒蛇"
 SUBLIME_3 = sys.version_info >= (3, 0)
 KEY = "pyyapf"
 
-SETTINGS_FILE = "PyYapf.sublime-settings"
-PROJECT_SETTINGS_KEY = "PyYapf"
+PLUGIN_SETTINGS_FILE = "PyYapf.sublime-settings"
+SUBLIME_SETTINGS_KEY = "PyYapf"
 
 if not SUBLIME_3:
     # backport from python 3.3 (https://hg.python.org/cpython/file/3.3/Lib/textwrap.py)
@@ -272,8 +272,6 @@ class Yapf:
         self.debug('Exit code %d', popen.returncode)
 
         # handle errors (since yapf>=0.3, exit code 2 means changed, not error)
-        logging.warn(encoded_stderr.decode(self.encoding))
-        logging.warn(encoded_stdout.decode(self.encoding))
         if popen.returncode not in (0, 2):
             stderr = encoded_stderr.decode(self.encoding)
             stderr = stderr.replace(os.linesep, '\n')
@@ -430,20 +428,12 @@ class EventListener(sublime_plugin.EventListener):
 
 
 def get_setting(view, key, default_value=None):
-    settings = sublime.load_settings(SETTINGS_FILE)
-    value = settings.get(key, default_value)
-    # check for project-level overrides:
-    project_value = _get_project_setting(key)
-    if project_value is None:
-        return value
-    return project_value
-
-
-def _get_project_setting(key):
+    # 1. check sublime settings (this includes project settings)
     settings = sublime.active_window().active_view().settings()
-    if not settings:
-        return None
-    config = settings.get(PROJECT_SETTINGS_KEY)
-    if config and key in config:
+    config = settings.get(SUBLIME_SETTINGS_KEY)
+    if config is not None and key in config:
         return config[key]
-    return None
+
+    # 2. check plugin settings
+    settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
+    return settings.get(key, default_value)
