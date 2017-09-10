@@ -23,6 +23,9 @@ u"我爱蟒蛇"
 SUBLIME_3 = sys.version_info >= (3, 0)
 KEY = "pyyapf"
 
+PLUGIN_SETTINGS_FILE = "PyYapf.sublime-settings"
+SUBLIME_SETTINGS_KEY = "PyYapf"
+
 if not SUBLIME_3:
     # backport from python 3.3 (https://hg.python.org/cpython/file/3.3/Lib/textwrap.py)
     def indent(text, prefix, predicate=None):
@@ -126,19 +129,17 @@ class Yapf:
         self.view = view
 
     def __enter__(self):
-        self.settings = sublime.load_settings("PyYapf.sublime-settings")
-
         # determine encoding
         self.encoding = self.view.encoding()
         if self.encoding in ['Undefined', None]:
-            self.encoding = self.settings.get('default_encoding')
+            self.encoding = self.get_setting('default_encoding')
             self.debug('Encoding is not specified, falling back to default %r',
                        self.encoding)
         else:
             self.debug('Encoding is %r', self.encoding)
 
         # custom style options?
-        custom_style = self.settings.get("config")
+        custom_style = self.get_setting("config")
         if custom_style:
             # write style file to temporary file
             self.custom_style_fname = save_style_to_tempfile(custom_style)
@@ -148,13 +149,15 @@ class Yapf:
             self.custom_style_fname = None
 
         # prepare popen arguments
-        cmd = self.settings.get("yapf_command")
+        cmd = self.get_setting("yapf_command")
         if not cmd:
             # always show error in popup
             msg = 'Yapf command not configured. Problem with settings?'
             sublime.error_message(msg)
             raise Exception(msg)
         cmd = os.path.expanduser(cmd)
+        cmd = sublime.expand_variables(
+            cmd, sublime.active_window().extract_variables())
 
         self.popen_args = [cmd]
         if self.custom_style_fname:
@@ -210,17 +213,18 @@ class Yapf:
             return
 
         # pass source code to be formatted on stdin?
-        if self.settings.get("use_stdin"):
+        if self.get_setting("use_stdin"):
             # run yapf
             self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
             try:
-                popen = subprocess.Popen(self.popen_args,
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE,
-                                         stdin=subprocess.PIPE,
-                                         cwd=self.popen_cwd,
-                                         env=self.popen_env,
-                                         startupinfo=self.popen_startupinfo)
+                popen = subprocess.Popen(
+                    self.popen_args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    stdin=subprocess.PIPE,
+                    cwd=self.popen_cwd,
+                    env=self.popen_env,
+                    startupinfo=self.popen_startupinfo)
             except OSError as err:
                 # always show error in popup
                 msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
@@ -304,7 +308,7 @@ class Yapf:
             return sublime.Region(selection.b + len(text), selection.b)
 
     def debug(self, msg, *args):
-        if self.settings.get('debug'):
+        if self.get_setting('debug'):
             print('PyYapf:', msg % args)
 
     def error(self, msg, *args):
@@ -313,8 +317,11 @@ class Yapf:
         # add to status bar
         self.errors.append(msg)
         self.view.set_status(KEY, 'PyYapf: %s' % ', '.join(self.errors))
-        if self.settings.get('popup_errors'):
+        if self.get_setting('popup_errors'):
             sublime.error_message(msg)
+
+    def get_setting(self, key, default_value=None):
+        return get_setting(self.view, key, default_value)
 
 
 def is_python(view):
@@ -385,7 +392,7 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
             # no selection?
             no_selection = all(s.empty() for s in self.view.sel())
             if no_selection:
-                if not yapf.settings.get("use_entire_file_if_no_selection"):
+                if not yapf.get_setting("use_entire_file_if_no_selection"):
                     sublime.error_message('A selection is required')
                     return
 
@@ -419,6 +426,17 @@ class YapfDocumentCommand(sublime_plugin.TextCommand):
 
 class EventListener(sublime_plugin.EventListener):
     def on_pre_save(self, view):  # pylint: disable=no-self-use
-        settings = sublime.load_settings("PyYapf.sublime-settings")
-        if settings.get('on_save'):
+        if get_setting(view, 'on_save'):
             view.run_command('yapf_document')
+
+
+def get_setting(view, key, default_value=None):
+    # 1. check sublime settings (this includes project settings)
+    settings = sublime.active_window().active_view().settings()
+    config = settings.get(SUBLIME_SETTINGS_KEY)
+    if config is not None and key in config:
+        return config[key]
+
+    # 2. check plugin settings
+    settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
+    return settings.get(key, default_value)
