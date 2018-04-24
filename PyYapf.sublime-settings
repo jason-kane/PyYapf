@@ -153,9 +153,10 @@
 
       // pass source code on stdin (otherwise, a temporary file is used).  only
       // when this option is enabled yapf will pick up the style as described
-      // in yapf --help).  currently disabled by default due to upstream bug,
-      // see https://github.com/google/yapf/pull/145.
-      "use_stdin": false,
+      // in yapf --help.  disable this option in case of UnicodeEncodeErrors
+      // (see https://github.com/jason-kane/PyYapf/issues/36, as well as
+      // https://github.com/jason-kane/PyYapf/issues/20 and the related
+      // upstream bug https://github.com/google/yapf/pull/145)
 
       // add extra output to the console for debugging pyyapf/yapf behavior
       "debug": false
