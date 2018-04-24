@@ -157,7 +157,8 @@ class Yapf:
             raise Exception(msg)
         cmd = os.path.expanduser(cmd)
         cmd = sublime.expand_variables(
-            cmd, sublime.active_window().extract_variables())
+            cmd,
+            sublime.active_window().extract_variables())
 
         self.popen_args = [cmd]
         if self.custom_style_fname:
