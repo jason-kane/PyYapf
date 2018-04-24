@@ -233,9 +233,12 @@ class Yapf:
             encoded_stdout, encoded_stderr = popen.communicate(encoded_text)
             text = encoded_stdout.decode(self.encoding)
         else:
-            # do _not_ use stdin.  this avoids a unicode defect in yapf, see
-            # https://github.com/google/yapf/pull/145.  once yapf is fixed
-            # we may remove the use_stdin option and this code.
+            # do _not_ use stdin. this avoids a unicode defect in yapf, see
+            # https://github.com/google/yapf/pull/145. the downside is that
+            # .style.yapf / setup.cfg configuration is not picked up properly,
+            # see https://github.com/jason-kane/PyYapf/issues/36.
+            # we may permanently use stdin and remove the use_stdin option and
+            # this code once the upstream bug is fixed.
             file_obj, temp_filename = tempfile.mkstemp(suffix=".py")
             try:
                 temp_handle = os.fdopen(file_obj, 'wb' if SUBLIME_3 else 'w')
