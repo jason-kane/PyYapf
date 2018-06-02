@@ -16,16 +16,14 @@
                 "caption": "Settings",
                 "command": "edit_settings",
                 "args": {
-                  "base_file": "${packages}/PyYapf Python Formatter/PyYapf.sublime-settings",
-                  "default": "${packages}/User/PyYapf.sublime-settings"
+                  "base_file": "${packages}/PyYapf Python Formatter/PyYapf.sublime-settings"
                 }
               },
               {
                 "caption": "Key Bindings",
                 "command": "edit_settings",
                 "args": {
-                  "base_file": "${packages}/PyYapf Python Formatter/Default ($platform).sublime-keymap",
-                  "default": "${packages}/User/Default ($platform).sublime-keymap"
+                  "base_file": "${packages}/PyYapf Python Formatter/Default ($platform).sublime-keymap"
                 }
               }
             ]
