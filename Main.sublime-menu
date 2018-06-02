@@ -13,6 +13,13 @@
             "caption": "PyYapf",
             "children": [
               {
+                "caption": "README",
+                "command": "open_file",
+                "args": {
+                  "file": "${packages}/PyYapf Python Formatter/README.md"
+                }
+              },
+              {
                 "caption": "Settings",
                 "command": "edit_settings",
                 "args": {
