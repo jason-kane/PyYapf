@@ -1,38 +1,46 @@
 [
-    {
-        "mnemonic": "n",
-        "caption": "Preferences",
-        "id": "preferences",
+  {
+    "mnemonic": "n",
+    "caption": "Preferences",
+    "id": "preferences",
+    "children": [
+      {
+        "mnemonic": "P",
+        "caption": "Package Settings",
+        "id": "package-settings",
         "children": [
-            {
-                "mnemonic": "P",
-                "caption": "Package Settings",
-                "id": "package-settings",
-                "children": [
-                    {
-                        "caption": "PyYapf",
-                        "children": [
-                            {
-                                "caption": "Settings – Default",
-                                "args": {
-                                    "file": "${packages}/PyYapf Python Formatter/PyYapf.sublime-settings"
-                                },
-                                "command": "open_file"
-                            },
-                            {
-                                "caption": "Settings – User",
-                                "args": {
-                                    "file": "${packages}/User/PyYapf.sublime-settings"
-                                },
-                                "command": "open_file"
-                            },
-                            {
-                                "caption": "-"
-                            }
-                        ]
-                    }
-                ]
-            }
+          {
+            "caption": "PyYapf",
+            "children": [
+              {
+                "caption": "Settings – Default",
+                "args": {
+                  "file": "${packages}/PyYapf Python Formatter/PyYapf.sublime-settings"
+                },
+                "command": "open_file"
+              },
+              {
+                "caption": "Settings – User",
+                "args": {
+                  "file": "${packages}/User/PyYapf.sublime-settings"
+                },
+                "command": "open_file"
+              },
+              {
+                "caption": "-"
+              },
+              {
+                "caption": "Key Bindings",
+                "command": "edit_settings",
+                "args": {
+                  "base_file": "${packages}/PyYapf Python Formatter/Default ($platform).sublime-keymap",
+                  "default": "${packages}/User/Default ($platform).sublime-keymap"
+                }
+              }
+            ]
+          }
         ]
-    }
+      }
+    ]
+  }
 ]
