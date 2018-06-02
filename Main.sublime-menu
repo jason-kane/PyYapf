@@ -13,21 +13,12 @@
             "caption": "PyYapf",
             "children": [
               {
-                "caption": "Settings – Default",
+                "caption": "Settings",
+                "command": "edit_settings",
                 "args": {
-                  "file": "${packages}/PyYapf Python Formatter/PyYapf.sublime-settings"
-                },
-                "command": "open_file"
-              },
-              {
-                "caption": "Settings – User",
-                "args": {
-                  "file": "${packages}/User/PyYapf.sublime-settings"
-                },
-                "command": "open_file"
-              },
-              {
-                "caption": "-"
+                  "base_file": "${packages}/PyYapf Python Formatter/PyYapf.sublime-settings",
+                  "default": "${packages}/User/PyYapf.sublime-settings"
+                }
               },
               {
                 "caption": "Key Bindings",
