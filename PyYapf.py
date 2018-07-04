@@ -17,6 +17,11 @@ import textwrap
 import sublime
 import sublime_plugin
 
+try:
+    from shutil import which
+except ImportError:
+    from backports.shutil_which import which
+
 # make sure we don't choke on unicode when we reformat ourselves
 u"我爱蟒蛇"
 
@@ -187,24 +192,18 @@ class Yapf:
             cmd,
             sublime.active_window().extract_variables())
 
+        save_settings = not cmd
+
         if not cmd:
-            # some common possibilities
-            for common_location in [
-                    "/usr/local/bin/yapf",  # most common
-                    "/usr/bin/yapf3",  # Ubnt 18.04
-                    "~/Library/Python/2.7/bin/yapf",  # OSx installed with --user
-                    "C:\\Python\\Scripts\\yapf.exe",  # Ugg.
-                    "~/AppData/Local/Programs/Python/Python36-32/Scripts/yapf.exe",
-            ]:
-                if os.path.exists(
-                        sublime.expand_variables(
-                            os.path.expanduser(common_location),
-                            sublime.active_window().extract_variables())):
-                    cmd = common_location
-                    settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
-                    settings.set("yapf_command", common_location)
-                    sublime.save_settings(PLUGIN_SETTINGS_FILE)
-                    break
+            cmd = which("yapf")
+
+        if not cmd:
+            cmd = which("yapf3")
+
+        if cmd and save_settings:
+            settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
+            settings.set("yapf_command", cmd)
+            sublime.save_settings(PLUGIN_SETTINGS_FILE)
 
         return cmd
 
