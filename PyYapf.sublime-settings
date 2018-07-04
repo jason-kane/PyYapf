@@ -1,6 +1,6 @@
 {
       // full path and command to run yapf
-      "yapf_command": "/usr/local/bin/yapf",
+      "yapf_command": "",
 
       // reformat entire file if no text is selected
       "use_entire_file_if_no_selection": true,

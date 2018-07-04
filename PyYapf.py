@@ -182,23 +182,19 @@ class Yapf:
         """Find the yapf executable."""
         # default to what is in the settings file
         cmd = self.get_setting("yapf_command")
-        if not cmd:
-            # always show error in popup
-            msg = 'Yapf command not configured. Problem with settings?'
-            sublime.error_message(msg)
-            raise Exception(msg)
-
         cmd = os.path.expanduser(cmd)
         cmd = sublime.expand_variables(
             cmd,
             sublime.active_window().extract_variables())
 
-        if not os.path.exists(cmd):
+        if not cmd:
             # some common possibilities
             for common_location in [
                     "/usr/local/bin/yapf",  # most common
                     "/usr/bin/yapf3",  # Ubnt 18.04
                     "~/Library/Python/2.7/bin/yapf",  # OSx installed with --user
+                    "C:\\Python\\Scripts\\yapf.exe",  # Ugg.
+                    "~/AppData/Local/Programs/Python/Python36-32/Scripts/yapf.exe",
             ]:
                 if os.path.exists(
                         sublime.expand_variables(
