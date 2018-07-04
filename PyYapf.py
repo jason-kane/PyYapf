@@ -194,11 +194,9 @@ class Yapf:
 
         save_settings = not cmd
 
-        if not cmd:
-            cmd = which("yapf")
-
-        if not cmd:
-            cmd = which("yapf3")
+        for maybe_cmd in ['yapf', 'yapf3', 'yapf.exe', 'yapf3.exe']:
+            if not cmd:
+                cmd = which(maybe_cmd)
 
         if cmd and save_settings:
             settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
