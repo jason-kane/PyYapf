@@ -148,19 +148,7 @@ class Yapf:
         else:
             self.custom_style_fname = None
 
-        # prepare popen arguments
-        cmd = self.get_setting("yapf_command")
-        if not cmd:
-            # always show error in popup
-            msg = 'Yapf command not configured. Problem with settings?'
-            sublime.error_message(msg)
-            raise Exception(msg)
-        cmd = os.path.expanduser(cmd)
-        cmd = sublime.expand_variables(
-            cmd,
-            sublime.active_window().extract_variables())
-
-        self.popen_args = [cmd]
+        self.popen_args = [self.find_yapf()]
         if self.custom_style_fname:
             self.popen_args += ['--style', self.custom_style_fname]
 
@@ -189,6 +177,40 @@ class Yapf:
     def __exit__(self, type, value, traceback):
         if self.custom_style_fname:
             os.unlink(self.custom_style_fname)
+
+    def find_yapf(self):
+        """Find the yapf executable."""
+        # default to what is in the settings file
+        cmd = self.get_setting("yapf_command")
+        if not cmd:
+            # always show error in popup
+            msg = 'Yapf command not configured. Problem with settings?'
+            sublime.error_message(msg)
+            raise Exception(msg)
+
+        cmd = os.path.expanduser(cmd)
+        cmd = sublime.expand_variables(
+            cmd,
+            sublime.active_window().extract_variables())
+
+        if not os.path.exists(cmd):
+            # some common possibilities
+            for common_location in [
+                    "/usr/local/bin/yapf",  # most common
+                    "/usr/bin/yapf3",  # Ubnt 18.04
+                    "~/Library/Python/2.7/bin/yapf",  # OSx installed with --user
+            ]:
+                if os.path.exists(
+                        sublime.expand_variables(
+                            os.path.expanduser(common_location),
+                            sublime.active_window().extract_variables())):
+                    cmd = common_location
+                    settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
+                    settings.set("yapf_command", common_location)
+                    sublime.save_settings(PLUGIN_SETTINGS_FILE)
+                    break
+
+        return cmd
 
     def format(self, edit, selection=None):
         """
