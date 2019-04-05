@@ -204,6 +204,9 @@ class Yapf:
         for maybe_cmd in ['yapf', 'yapf3', 'yapf.exe', 'yapf3.exe']:
             if not cmd:
                 cmd = which(maybe_cmd)
+            if cmd:
+                self.debug('Found yapf: %s', cmd)
+                break
 
         if cmd and save_settings:
             settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
