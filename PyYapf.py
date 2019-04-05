@@ -17,6 +17,11 @@ import textwrap
 import sublime
 import sublime_plugin
 
+try:
+    from shutil import which
+except ImportError:
+    from backports.shutil_which import which
+
 # make sure we don't choke on unicode when we reformat ourselves
 u"我爱蟒蛇"
 
@@ -148,19 +153,7 @@ class Yapf:
         else:
             self.custom_style_fname = None
 
-        # prepare popen arguments
-        cmd = self.get_setting("yapf_command")
-        if not cmd:
-            # always show error in popup
-            msg = 'Yapf command not configured. Problem with settings?'
-            sublime.error_message(msg)
-            raise Exception(msg)
-        cmd = os.path.expanduser(cmd)
-        cmd = sublime.expand_variables(
-            cmd,
-            sublime.active_window().extract_variables())
-
-        self.popen_args = [cmd]
+        self.popen_args = [self.find_yapf()]
         if self.custom_style_fname:
             self.popen_args += ['--style', self.custom_style_fname]
 
@@ -189,6 +182,28 @@ class Yapf:
     def __exit__(self, type, value, traceback):
         if self.custom_style_fname:
             os.unlink(self.custom_style_fname)
+
+    def find_yapf(self):
+        """Find the yapf executable."""
+        # default to what is in the settings file
+        cmd = self.get_setting("yapf_command")
+        cmd = os.path.expanduser(cmd)
+        cmd = sublime.expand_variables(
+            cmd,
+            sublime.active_window().extract_variables())
+
+        save_settings = not cmd
+
+        for maybe_cmd in ['yapf', 'yapf3', 'yapf.exe', 'yapf3.exe']:
+            if not cmd:
+                cmd = which(maybe_cmd)
+
+        if cmd and save_settings:
+            settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
+            settings.set("yapf_command", cmd)
+            sublime.save_settings(PLUGIN_SETTINGS_FILE)
+
+        return cmd
 
     def format(self, edit, selection=None):
         """
