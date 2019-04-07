@@ -35,6 +35,17 @@ If there is something wrong with this plugin, [add an issue](https://github.com/
 
 [Package Control](https://packagecontrol.io/packages/PyYapf%20Python%20Formatter)
 
+## Mentions
+
+[Must-Have Packages and Settings in Sublime Text for a Python Developer](https://fosstack.com/setup-sublime-python/)
+[Teach yapf and python-fire to Python beginners](https://chibicode.com/posts/yapf-python-fire/)
+[Yapf - we brush the code of Python with autocorrector](https://weekly-geekly.github.io/articles/324336/index.html)
+[Yapf — причесываем код Python автокорректором](https://habr.com/ru/post/324336/)
+
+I love stumbling across things like these, it's a small world sometimes.
+http://blog.leanote.com/post/kaixiang/sublime%E4%B8%AD%E4%BD%BF%E7%94%A8yafp%E6%A0%BC%E5%BC%8F%E5%8C%96python%E4%BB%A3%E7%A0%81
+https://codertw.com/%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80/119839/
+
 ## LICENSE
 
 Apache v2 per LICENSE.  Do what you want; if you fix something please share it.
