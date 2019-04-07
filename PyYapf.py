@@ -9,6 +9,7 @@ except ImportError:
     import ConfigParser as configparser
 
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -34,13 +35,13 @@ SUBLIME_SETTINGS_KEY = "PyYapf"
 if not SUBLIME_3:
     # backport from python 3.3 (https://hg.python.org/cpython/file/3.3/Lib/textwrap.py)
     def indent(text, prefix, predicate=None):
-        """Adds 'prefix' to the beginning of selected lines in 'text'.
+        """Add 'prefix' to the beginning of selected lines in 'text'.
+
         If 'predicate' is provided, 'prefix' will only be added to the lines
         where 'predicate(line)' is True. If 'predicate' is not provided,
         it will default to adding 'prefix' to all non-empty lines that do not
         consist solely of whitespace characters.
         """
-
         if predicate is None:
 
             def predicate(line):
@@ -138,8 +139,10 @@ class Yapf:
         self.encoding = self.view.encoding()
         if self.encoding in ['Undefined', None]:
             self.encoding = self.get_setting('default_encoding')
-            self.debug('Encoding is not specified, falling back to default %r',
-                       self.encoding)
+            self.debug(
+                'Encoding is not specified, falling back to default %r',
+                self.encoding
+            )
         else:
             self.debug('Encoding is %r', self.encoding)
 
@@ -148,12 +151,15 @@ class Yapf:
         if custom_style:
             # write style file to temporary file
             self.custom_style_fname = save_style_to_tempfile(custom_style)
-            self.debug('Using custom style (%s):\n%s', self.custom_style_fname,
-                       open(self.custom_style_fname).read().strip())
+            self.debug(
+                'Using custom style (%s):\n%s', self.custom_style_fname,
+                open(self.custom_style_fname).read().strip()
+            )
         else:
             self.custom_style_fname = None
 
-        self.popen_args = [self.find_yapf()]
+        # use shlex.split because we should honor embedded quoted arguemnts
+        self.popen_args = shlex.split(self.find_yapf(), posix=False)
         if self.custom_style_fname:
             self.popen_args += ['--style', self.custom_style_fname]
 
@@ -190,13 +196,17 @@ class Yapf:
         cmd = os.path.expanduser(cmd)
         cmd = sublime.expand_variables(
             cmd,
-            sublime.active_window().extract_variables())
+            sublime.active_window().extract_variables()
+        )
 
         save_settings = not cmd
 
         for maybe_cmd in ['yapf', 'yapf3', 'yapf.exe', 'yapf3.exe']:
             if not cmd:
                 cmd = which(maybe_cmd)
+            if cmd:
+                self.debug('Found yapf: %s', cmd)
+                break
 
         if cmd and save_settings:
             settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
@@ -240,7 +250,8 @@ class Yapf:
                     stdin=subprocess.PIPE,
                     cwd=self.popen_cwd,
                     env=self.popen_env,
-                    startupinfo=self.popen_startupinfo)
+                    startupinfo=self.popen_startupinfo
+                )
             except OSError as err:
                 # always show error in popup
                 msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
@@ -270,7 +281,8 @@ class Yapf:
                         stderr=subprocess.PIPE,
                         cwd=self.popen_cwd,
                         env=self.popen_env,
-                        startupinfo=self.popen_startupinfo)
+                        startupinfo=self.popen_startupinfo
+                    )
                 except OSError as err:
                     # always show error in popup
                     msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
@@ -444,6 +456,7 @@ class YapfDocumentCommand(sublime_plugin.TextCommand):
 
 
 class EventListener(sublime_plugin.EventListener):
+
     def on_pre_save(self, view):  # pylint: disable=no-self-use
         if get_setting(view, 'on_save'):
             view.run_command('yapf_document')
