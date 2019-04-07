@@ -31,6 +31,10 @@ This makes it pretty easy to find valid python code that makes Yapf choke or giv
 Please try to reduce any problems to a minimal example and [let the YAPF folks know](https://github.com/google/yapf/issues).
 If there is something wrong with this plugin, [add an issue](https://github.com/jason-kane/PyYapf/issues) on GitHub and I'll try to address it.
 
+## Distribution
+
+[Package Control](https://packagecontrol.io/packages/PyYapf%20Python%20Formatter)
+
 ## LICENSE
 
 Apache v2 per LICENSE.  Do what you want; if you fix something please share it.
