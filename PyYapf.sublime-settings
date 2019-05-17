@@ -1,4 +1,10 @@
 {
+      //Can be "yapf" or "black"
+      "formatter": "yapf",
+
+      // full path and command to run black
+      "black_command": "",
+
       // full path and command to run yapf
       "yapf_command": "",
 

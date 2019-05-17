@@ -1,10 +1,10 @@
 [
     {
         "caption": "PyYapf: Format Selection",
-        "command": "yapf_selection"
+        "command": "format_selection"
     },
     {
         "caption": "PyYapf: Format Document",
-        "command": "yapf_document"
+        "command": "format_document"
     }
 ]

@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Sublime Text 2-3 Plugin to invoke YAPF on a Python file.
+
+Provides yapf_selection and yapf_document which can be invoked from
+sublime text.
 """
 from __future__ import print_function
 try:
@@ -126,19 +129,21 @@ else:
     ERROR_FLAGS = sublime.DRAW_OUTLINED
 
 
-class Yapf:
-    """
-    This class wraps YAPF invocation, including encoding/decoding and error handling.
-    """
+class Formatter(object):
+
+    package_name = "yapf"
+    cmd_setting = "yapf_command",
+    cmd_maybe = ('yapf', 'yapf3', 'yapf.exe', 'yapf3.exe')
+    custom_style_fname = None
 
     def __init__(self, view):
         self.view = view
 
-    def __enter__(self):
-        # determine encoding
+    def __set_encoding(self):
+        """Determine suitable encoding."""
         self.encoding = self.view.encoding()
         if self.encoding in ['Undefined', None]:
-            self.encoding = self.get_setting('default_encoding')
+            self.encoding = get_setting('default_encoding')
             self.debug(
                 'Encoding is not specified, falling back to default %r',
                 self.encoding
@@ -146,22 +151,34 @@ class Yapf:
         else:
             self.debug('Encoding is %r', self.encoding)
 
-        # custom style options?
-        custom_style = self.get_setting("config")
-        if custom_style:
-            # write style file to temporary file
-            self.custom_style_fname = save_style_to_tempfile(custom_style)
-            self.debug(
-                'Using custom style (%s):\n%s', self.custom_style_fname,
-                open(self.custom_style_fname).read().strip()
-            )
-        else:
-            self.custom_style_fname = None
+    def __exit__(self, type, value, traceback):
+        if self.custom_style_fname:
+            os.unlink(self.custom_style_fname)
+
+    def debug(self, msg, *args):
+        if get_setting('debug'):
+            print('PyYapf:', msg % args)
+
+    def error(self, msg, *args):
+        msg = msg % args
+
+        # add to status bar
+        self.errors.append(msg)
+        self.view.set_status(KEY, 'PyYapf: %s' % ', '.join(self.errors))
+        if get_setting('popup_errors'):
+            sublime.error_message(msg)
+
+    def _custom_popen_args(self):
+        """Command line customizations based on configuration."""
+        return
+
+    def __enter__(self):
+        """Set attributes of self. based on configuration and environment."""
+        self.__set_encoding()
 
         # use shlex.split because we should honor embedded quoted arguemnts
-        self.popen_args = shlex.split(self.find_yapf(), posix=False)
-        if self.custom_style_fname:
-            self.popen_args += ['--style', self.custom_style_fname]
+        self.popen_args = shlex.split(self.find_formatter(), posix=False)
+        self._custom_popen_args()
 
         # use directory of current file so that custom styles are found properly
         fname = self.view.file_name()
@@ -185,14 +202,10 @@ class Yapf:
         self.errors = []
         return self
 
-    def __exit__(self, type, value, traceback):
-        if self.custom_style_fname:
-            os.unlink(self.custom_style_fname)
-
-    def find_yapf(self):
+    def find_formatter(self):
         """Find the yapf executable."""
         # default to what is in the settings file
-        cmd = self.get_setting("yapf_command")
+        cmd = get_setting(self.cmd_setting)
         cmd = os.path.expanduser(cmd)
         cmd = sublime.expand_variables(
             cmd,
@@ -201,7 +214,7 @@ class Yapf:
 
         save_settings = not cmd
 
-        for maybe_cmd in ['yapf', 'yapf3', 'yapf.exe', 'yapf3.exe']:
+        for maybe_cmd in self.cmd_maybe:
             if not cmd:
                 cmd = which(maybe_cmd)
             if cmd:
@@ -210,17 +223,12 @@ class Yapf:
 
         if cmd and save_settings:
             settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
-            settings.set("yapf_command", cmd)
+            settings.set(self.cmd_setting, cmd)
             sublime.save_settings(PLUGIN_SETTINGS_FILE)
 
         return cmd
 
-    def format(self, edit, selection=None):
-        """
-        Format selection (if None then formats the entire document).
-        Returns region containing the reformatted text.
-        """
-        # determine selection to format
+    def get_text(self, selection=None):
         if not selection:
             selection = sublime.Region(0, self.view.size())
         self.debug('Formatting selection %r', selection)
@@ -236,10 +244,56 @@ class Yapf:
         except UnicodeEncodeError as err:
             msg = "You may need to re-open this file with a different encoding. Current encoding is %r." % self.encoding
             self.error("UnicodeEncodeError: %s\n\n%s", err, msg)
+            return None, None
+
+        return selection, encoded_text, indent, trailing_nl
+
+
+class Yapf(Formatter):
+    """
+    This class wraps YAPF invocation.
+
+    Includes encoding/decoding and error handling.
+    """
+
+    package_name = "yapf"
+    cmd_setting = "yapf_command",
+    cmd_maybe = ('yapf', 'yapf3', 'yapf.exe', 'yapf3.exe')
+
+    def _custom_popen_args(self):
+        # custom style options?  It's probably better to use
+        # the yapf config options baked into yapf so you
+        # can run yapf from the command line with the same
+        # config.  ie: this is a bit of a mis-feature.
+
+        custom_style = get_setting("config")
+        if custom_style:
+            # write style file to temporary file
+            self.custom_style_fname = save_style_to_tempfile(custom_style)
+            self.debug(
+                'Using custom style (%s):\n%s', self.custom_style_fname,
+                open(self.custom_style_fname).read().strip()
+            )
+        else:
+            self.custom_style_fname = None
+
+        if self.custom_style_fname:
+            self.popen_args += ['--style', self.custom_style_fname]
+
+    def format(self, edit, selection=None):
+        """
+        Format selection (if None then formats the entire document).
+        Returns region containing the reformatted text.
+        """
+        # determine selection to format
+        selection, encoded_text, indent, trailing_nl = self.get_text(selection)
+
+        # lazy.. use an exception, not a None.
+        if encoded_text is None:
             return
 
-        # pass source code to be formatted on stdin?
-        if self.get_setting("use_stdin"):
+        # pass source code to be formatted on stdin?  This is the preferred method.
+        if get_setting("use_stdin"):
             # run yapf
             self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
             try:
@@ -254,7 +308,10 @@ class Yapf:
                 )
             except OSError as err:
                 # always show error in popup
-                msg = "You may need to install YAPF and/or configure 'yapf_command' in PyYapf's Settings."
+                msg = "You may need to install '%s' and/or configure '%s' in PyYapf's Settings." % (
+                    self.package_name,
+                    self.cmd_setting
+                )
                 sublime.error_message("OSError: %s\n\n%s" % (err, msg))
                 return
             encoded_stdout, encoded_stderr = popen.communicate(encoded_text)
@@ -338,21 +395,95 @@ class Yapf:
         else:
             return sublime.Region(selection.b + len(text), selection.b)
 
-    def debug(self, msg, *args):
-        if self.get_setting('debug'):
-            print('PyYapf:', msg % args)
 
-    def error(self, msg, *args):
-        msg = msg % args
+class Black(Formatter):
+    cmd_setting = "black_command"
+    cmd_maybe = ('black', )
 
-        # add to status bar
-        self.errors.append(msg)
-        self.view.set_status(KEY, 'PyYapf: %s' % ', '.join(self.errors))
-        if self.get_setting('popup_errors'):
-            sublime.error_message(msg)
+    def format(self, edit, selection=None):
+        """
+        Format selection (if None then formats the entire document).
+        Returns region containing the reformatted text.
+        """
+        # determine selection to format
+        selection, encoded_text, indent, trailing_nl = self.get_text(selection)
 
-    def get_setting(self, key, default_value=None):
-        return get_setting(self.view, key, default_value)
+        # lazy.. use an exception, not a None.
+        if encoded_text is None:
+            return
+
+        # run black
+        file_obj, temp_filename = tempfile.mkstemp(suffix=".py")
+
+        try:
+            temp_handle = os.fdopen(file_obj, 'wb' if SUBLIME_3 else 'w')
+            temp_handle.write(encoded_text)
+            temp_handle.close()
+            self.popen_args.append(temp_filename)
+
+            self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
+            try:
+                popen = subprocess.Popen(
+                    self.popen_args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=self.popen_cwd,
+                    env=self.popen_env,
+                    startupinfo=self.popen_startupinfo
+                )
+            except OSError as err:
+                # always show error in popup
+                msg = "You may need to install '%s' and/or configure '%s' in PyYapf's Settings." % (
+                    self.package_name,
+                    self.cmd_setting
+                )
+                sublime.error_message("OSError: %s\n\n%s" % (err, msg))
+                return
+
+            encoded_stdout, encoded_stderr = popen.communicate(encoded_text)
+
+            if SUBLIME_3:
+                open_encoded = open
+            else:
+                import codecs
+                open_encoded = codecs.open
+
+            with open_encoded(temp_filename, encoding=self.encoding) as fp:
+                text = fp.read()
+        finally:
+            os.unlink(temp_filename)
+
+        self.debug('Exit code %d', popen.returncode)
+
+        # handle errors, black uses 0 for no changes, 1 for changes.
+        if popen.returncode not in (0, 1):
+            stderr = encoded_stderr.decode(self.encoding)
+            stderr = stderr.replace(os.linesep, '\n')
+            self.debug('Error:\n%s', stderr)
+
+            # report error
+            err_lines = stderr.splitlines()
+            msg = err_lines[-1]
+            self.error('%s', msg)
+            return
+
+        # adjust newlines (only necessary when use_stdin is True, since
+        # [codecs.]open uses universal newlines by default)
+        text = text.replace(os.linesep, '\n')
+
+        # re-indent and replace text
+        text = indent_text(text, indent, trailing_nl)
+        # region required?
+        self.view.replace(edit, selection, text)
+
+        # return region containing modified text
+        if selection.a <= selection.b:
+            return sublime.Region(selection.a, selection.a + len(text))
+        else:
+            return sublime.Region(selection.b + len(text), selection.b)
+
+    def _custom_popen_args(self):
+        self.popen_args.append('--pyi')
 
 
 def is_python(view):
@@ -423,7 +554,7 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
             # no selection?
             no_selection = all(s.empty() for s in self.view.sel())
             if no_selection:
-                if not yapf.get_setting("use_entire_file_if_no_selection"):
+                if not get_setting("use_entire_file_if_no_selection"):
                     sublime.error_message('A selection is required')
                     return
 
@@ -455,14 +586,63 @@ class YapfDocumentCommand(sublime_plugin.TextCommand):
                 yapf.format(edit)
 
 
+class BlackSelectionCommand(sublime_plugin.TextCommand):
+    """
+    The "black_selection" command formats the current selection (or the entire
+    document if the "use_entire_file_if_no_selection" option is enabled).
+    """
+
+    def is_enabled(self):
+        return is_python(self.view)
+
+    def run(self, edit):
+        with Black(self.view) as black:
+            # no selection?
+            no_selection = all(s.empty() for s in self.view.sel())
+            if no_selection:
+                if not get_setting("use_entire_file_if_no_selection"):
+                    sublime.error_message('A selection is required')
+                    return
+
+                # format entire document
+                with PreserveSelectionAndView(self.view):
+                    black.format(edit)
+                return
+
+            # otherwise format all (non-empty) ones
+            with PreserveSelectionAndView(self.view) as pv:
+                pv.sel = []
+                for s in self.view.sel():
+                    if not s.empty():
+                        new_s = black.format(edit, s)
+                        pv.sel.append(new_s if new_s else s)
+
+
+class BlackDocumentCommand(sublime_plugin.TextCommand):
+    """
+    The "black_document" command formats the current document.
+    """
+
+    def is_enabled(self):
+        return is_python(self.view)
+
+    def run(self, edit):
+        print("Running BlackDocumentCommand")
+        with PreserveSelectionAndView(self.view):
+            with Black(self.view) as black:
+                black.format(edit)
+
+
 class EventListener(sublime_plugin.EventListener):
 
     def on_pre_save(self, view):  # pylint: disable=no-self-use
-        if get_setting(view, 'on_save'):
+        if get_setting('on_save'):
             view.run_command('yapf_document')
+        elif get_setting('black_on_save'):
+            view.run_command('black_document')
 
 
-def get_setting(view, key, default_value=None):
+def get_setting(key, default_value=None):
     # 1. check sublime settings (this includes project settings)
     settings = sublime.active_window().active_view().settings()
     config = settings.get(SUBLIME_SETTINGS_KEY)
@@ -471,4 +651,18 @@ def get_setting(view, key, default_value=None):
 
     # 2. check plugin settings
     settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
+    print(key)
     return settings.get(key, default_value)
+
+if get_setting("formatter") == "black":
+    _FormatSelectionCommand = BlackSelectionCommand
+    _FormatDocumentCommand = BlackDocumentCommand
+else:
+    _FormatSelectionCommand = YapfSelectionCommand
+    _FormatDocumentCommand = YapfDocumentCommand
+
+class FormatSelectionCommand(_FormatSelectionCommand):
+    """wrapper"""
+
+class FormatDocumentCommand(_FormatDocumentCommand):
+    """wrapper"""

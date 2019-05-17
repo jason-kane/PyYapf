@@ -1,10 +1,26 @@
 [
     {
         "caption": "PyYapf: Format Selection",
-        "command": "yapf_selection"
+        "command": "format_selection"
     },
     {
         "caption": "PyYapf: Format Document",
+        "command": "format_document"
+    },
+    {
+        "caption": "PyYapf: Yapf Format Selection",
+        "command": "yapf_selection"
+    },
+    {
+        "caption": "PyYapf: Yapf Format Document",
         "command": "yapf_document"
-    }
+    },
+    {
+        "caption": "PyYapf: Black Format Selection",
+        "command": "black_selection"
+    },
+    {
+        "caption": "PyYapf: Black Format Document",
+        "command": "black_document"
+    },
 ]
