@@ -8,6 +8,7 @@ try:
 except ImportError:
     import ConfigParser as configparser
 
+import fnmatch
 import os
 import shlex
 import subprocess
@@ -33,7 +34,8 @@ PLUGIN_SETTINGS_FILE = "PyYapf.sublime-settings"
 SUBLIME_SETTINGS_KEY = "PyYapf"
 
 if not SUBLIME_3:
-    # backport from python 3.3 (https://hg.python.org/cpython/file/3.3/Lib/textwrap.py)
+    # backport from python 3.3
+    # (https://hg.python.org/cpython/file/3.3/Lib/textwrap.py)
     def indent(text, prefix, predicate=None):
         """Add 'prefix' to the beginning of selected lines in 'text'.
 
@@ -57,7 +59,7 @@ if not SUBLIME_3:
 
 
 def save_style_to_tempfile(style):
-    # build config object
+    """Build yapf style config file."""
     cfg = configparser.RawConfigParser()
     cfg.add_section('style')
     for key, value in style.items():
@@ -70,6 +72,7 @@ def save_style_to_tempfile(style):
 
 
 def dedent_text(text):
+    """Strip initial whitespace from text but note how wide it is."""
     new_text = textwrap.dedent(text)
     if not new_text:
         return new_text, '', False
@@ -88,7 +91,7 @@ def dedent_text(text):
 
 
 def indent_text(text, indent, trailing_nl):
-    # reindent
+    """Reindent text by `indent` characters."""
     text = textwrap.indent(text, indent)
 
     # remove trailing newline if so desired
@@ -99,12 +102,11 @@ def indent_text(text, indent, trailing_nl):
 
 
 def parse_error_line(err_lines):
-    """
-    Parse YAPF output to determine line on which error occurred.
-    """
+    """Parse YAPF output to determine line on which error occurred."""
     msg = err_lines[-1]
 
-    # yapf.yapflib.verifier.InternalError: Missing parentheses in call to 'print' (<string>, line 2)
+    # yapf.yapflib.verifier.InternalError:
+    #     Missing parentheses in call to 'print' (<string>, line 2)
     if '(<string>, line ' in msg:
         return int(msg.rstrip(')').rsplit(None, 1)[1]) + 1
 
@@ -128,13 +130,17 @@ else:
 
 class Yapf:
     """
-    This class wraps YAPF invocation, including encoding/decoding and error handling.
+    This class wraps YAPF invocation.
+
+    Includes encoding/decoding and error handling.
     """
 
     def __init__(self, view):
+        """We are tied to a specific view (an open file in sublime)."""
         self.view = view
 
     def __enter__(self):
+        """Sublime calls plugins 'with' a context manager."""
         # determine encoding
         self.encoding = self.view.encoding()
         if self.encoding in ['Undefined', None]:
@@ -163,7 +169,8 @@ class Yapf:
         if self.custom_style_fname:
             self.popen_args += ['--style', self.custom_style_fname]
 
-        # use directory of current file so that custom styles are found properly
+        # use directory of current file so that custom styles are found
+        # properly
         fname = self.view.file_name()
         self.popen_cwd = os.path.dirname(fname) if fname else None
 
@@ -186,6 +193,7 @@ class Yapf:
         return self
 
     def __exit__(self, type, value, traceback):
+        """Context manager cleanup."""
         if self.custom_style_fname:
             os.unlink(self.custom_style_fname)
 
@@ -218,6 +226,7 @@ class Yapf:
     def format(self, edit, selection=None):
         """
         Format selection (if None then formats the entire document).
+
         Returns region containing the reformatted text.
         """
         # determine selection to format
@@ -234,7 +243,10 @@ class Yapf:
         try:
             encoded_text = text.encode(self.encoding)
         except UnicodeEncodeError as err:
-            msg = "You may need to re-open this file with a different encoding. Current encoding is %r." % self.encoding
+            msg = (
+                "You may need to re-open this file with a different encoding."
+                " Current encoding is %r." % self.encoding
+            )
             self.error("UnicodeEncodeError: %s\n\n%s", err, msg)
             return
 
@@ -339,10 +351,12 @@ class Yapf:
             return sublime.Region(selection.b + len(text), selection.b)
 
     def debug(self, msg, *args):
+        """Logger that will be caught by sublimes ~ output screen."""
         if self.get_setting('debug'):
             print('PyYapf:', msg % args)
 
     def error(self, msg, *args):
+        """Logger to make errors as obvious as we can make them."""
         msg = msg % args
 
         # add to status bar
@@ -352,10 +366,12 @@ class Yapf:
             sublime.error_message(msg)
 
     def get_setting(self, key, default_value=None):
+        """Wrapper to return a single setting."""
         return get_setting(self.view, key, default_value)
 
 
 def is_python(view):
+    """Cosmetic sugar."""
     return view.score_selector(0, 'source.python') > 0
 
 
@@ -363,47 +379,52 @@ if not SUBLIME_3:
 
     class PreserveSelectionAndView:
         """
-        This context manager assists in preserving the selection and view
-        when text is replaced.
+        Context manager to preserve selection and view when text is replaced.
+
+        Sublime Text 2 sucks at this, hence the manual lifting.
         """
 
         def __init__(self, view):
+            """Preserve the view (single open document)."""
             self.view = view
 
         def __enter__(self):
-            # save selection and view
+            """Save selection and view."""
             self.sel = list(self.view.sel())
             self.visible_region_begin = self.view.visible_region().begin()
             self.viewport_position = self.view.viewport_position()
             return self
 
         def __exit__(self, type, value, traceback):
-            # restore selection
+            """Restore selection."""
             self.view.sel().clear()
             for s in self.sel:
                 self.view.sel().add(s)
 
-            # restore view (this is somewhat cargo cultish, not sure why a single statement does not suffice)
+            # restore view (this is somewhat cargo cultish, not sure why a
+            # single statement does not suffice)
             self.view.show(self.visible_region_begin)
             self.view.set_viewport_position(self.viewport_position)
 else:
 
     class PreserveSelectionAndView:
         """
-        This context manager assists in preserving the selection when text is replaced.
-        (Sublime Text 3 already does a good job preserving the view.)
+        Context manager to preserve selection and view when text is replaced.
+
+        Sublime Text 3 already does a good job preserving the view.
         """
 
         def __init__(self, view):
+            """Preserve view."""
             self.view = view
 
         def __enter__(self):
-            # save selection
+            """Save selection."""
             self.sel = list(self.view.sel())
             return self
 
         def __exit__(self, type, value, traceback):
-            # restore selection
+            """Restore selection."""
             self.view.sel().clear()
             for s in self.sel:
                 self.view.sel().add(s)
@@ -411,14 +432,23 @@ else:
 
 class YapfSelectionCommand(sublime_plugin.TextCommand):
     """
-    The "yapf_selection" command formats the current selection (or the entire
-    document if the "use_entire_file_if_no_selection" option is enabled).
+    The "yapf_selection" command formats the current selection.
+
+    Will format the entire document if the "use_entire_file_if_no_selection"
+    option is enabled.
     """
 
     def is_enabled(self):
+        """
+        Only allow yapf for python documents.
+
+        I'm of two minds on this as I frequently use yapf to reformat
+        json blobs.
+        """
         return is_python(self.view)
 
     def run(self, edit):
+        """Sublime Text executes this when you trigger the TextCommand."""
         with Yapf(self.view) as yapf:
             # no selection?
             no_selection = all(s.empty() for s in self.view.sel())
@@ -442,27 +472,44 @@ class YapfSelectionCommand(sublime_plugin.TextCommand):
 
 
 class YapfDocumentCommand(sublime_plugin.TextCommand):
-    """
-    The "yapf_document" command formats the current document.
-    """
+    """The "yapf_document" command formats the current document."""
 
     def is_enabled(self):
+        """
+        Only allow yapf for python documents.
+
+        I'm of two minds on this as I frequently use yapf to reformat
+        json blobs.
+        """
         return is_python(self.view)
 
     def run(self, edit):
+        """Sublime Text executes this when you trigger the TextCommand."""
         with PreserveSelectionAndView(self.view):
             with Yapf(self.view) as yapf:
                 yapf.format(edit)
 
 
 class EventListener(sublime_plugin.EventListener):
+    """Hook in to detect when a file is saved."""
 
     def on_pre_save(self, view):  # pylint: disable=no-self-use
+        """Before we let ST save the file, run yapf on it."""
         if get_setting(view, 'on_save'):
+            if view.file_name() and get_setting(view, "onsave_ignore_fn_glob"):
+                for pattern in get_setting(view, "onsave_ignore_fn_glob"):
+                    if fnmatch.fnmatch(view.file_name(), pattern):
+                        print(
+                            'PyYapf: Skipping yapf, matches pattern {}'.
+                            format(pattern)
+                        )
+                        return
+
             view.run_command('yapf_document')
 
 
 def get_setting(view, key, default_value=None):
+    """Retrieve a key from the settings file."""
     # 1. check sublime settings (this includes project settings)
     settings = sublime.active_window().active_view().settings()
     config = settings.get(SUBLIME_SETTINGS_KEY)

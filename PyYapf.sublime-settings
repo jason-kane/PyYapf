@@ -8,6 +8,9 @@
       // run yapf before saving document
       "on_save": false,
 
+      // ignore files matching glob(s)
+      "onsave_ignore_fn_glob": ["*.pyx", ],
+
       // report errors in popup dialog (in addition to status bar)
       "popup_errors": false,
 
