@@ -3,10 +3,6 @@
 Sublime Text 2-3 Plugin to invoke YAPF on a Python file.
 """
 from __future__ import print_function
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
 
 import fnmatch
 import os
@@ -18,6 +14,11 @@ import textwrap
 
 import sublime
 import sublime_plugin
+
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
 
 try:
     from shutil import which
@@ -154,7 +155,7 @@ class Yapf:
 
         # custom style options?
         custom_style = self.get_setting("config")
-        if custom_style:
+        if custom_style: 
             # write style file to temporary file
             self.custom_style_fname = save_style_to_tempfile(custom_style)
             self.debug(
@@ -370,6 +371,164 @@ class Yapf:
         return get_setting(self.view, key, default_value)
 
 
+class ISort:
+    """
+    This class wraps isort invocation.
+    """
+
+    def __init__(self, view):
+        """We are tied to a specific view (an open file in sublime)."""
+        self.view = view
+
+    def __enter__(self):
+        """Sublime calls plugins 'with' a context manager."""       
+        self.encoding = self.view.encoding()
+        if self.encoding in ['Undefined', None]:
+            self.encoding = self.get_setting('default_encoding')
+            self.debug(
+                'Encoding is not specified, falling back to default %r',
+                self.encoding
+            )
+        else:
+            self.debug('Encoding is %r', self.encoding)
+        # use shlex.split because we should honor embedded quoted arguemnts
+        self.popen_args = shlex.split(self.find_isort(), posix=False)
+
+        # use directory of current file so that custom styles are found
+        # properly
+        fname = self.view.file_name()
+        self.popen_cwd = os.path.dirname(fname) if fname else None
+
+        # specify encoding in environment
+        self.popen_env = os.environ.copy()
+        self.popen_env['LANG'] = str(self.encoding)
+
+        # win32: hide console window
+        if sys.platform in ('win32', 'cygwin'):
+            self.popen_startupinfo = subprocess.STARTUPINFO()
+            self.popen_startupinfo.dwFlags = subprocess.CREATE_NEW_CONSOLE | subprocess.STARTF_USESHOWWINDOW
+            self.popen_startupinfo.wShowWindow = subprocess.SW_HIDE
+        else:
+            self.popen_startupinfo = None
+
+        # clear marked regions and status
+        self.view.erase_regions(KEY)
+        self.view.erase_status(KEY)
+        self.errors = []
+        return self
+
+    def __exit__(self, type, value, traceback):
+        """Context manager cleanup."""
+        return
+
+    def find_isort(self):
+        """Find the isort executable."""
+        # default to what is in the settings file
+        cmd = self.get_setting("isort_command", "isort")
+        cmd = os.path.expanduser(cmd)
+        cmd = sublime.expand_variables(
+            cmd,
+            sublime.active_window().extract_variables()
+        )
+
+        save_settings = not cmd
+
+        for maybe_cmd in ['isort', ]:
+            if not cmd:
+                cmd = which(maybe_cmd)
+            if cmd:
+                self.debug('Found isort: %s', cmd)
+                break
+
+        if cmd and save_settings:
+            settings = sublime.load_settings(PLUGIN_SETTINGS_FILE)
+            settings.set("isort_command", cmd)
+            sublime.save_settings(PLUGIN_SETTINGS_FILE)
+
+        return cmd
+
+    def format(self, edit):
+        """
+        Formats the entire document.
+        """
+        selection = sublime.Region(0, self.view.size())
+        
+        # retrieve selected text & dedent
+        text = self.view.substr(selection)
+
+        # encode text
+        try:
+            encoded_text = text.encode(self.encoding)
+        except UnicodeEncodeError as err:
+            msg = (
+                "You may need to re-open this file with a different encoding."
+                " Current encoding is %r." % self.encoding
+            )
+            self.error("UnicodeEncodeError: %s\n\n%s", err, msg)
+            return
+
+        file_obj, temp_filename = tempfile.mkstemp(suffix=".py")
+        try:
+            temp_handle = os.fdopen(file_obj, 'wb' if SUBLIME_3 else 'w')
+            temp_handle.write(encoded_text)
+            temp_handle.close()
+            self.popen_args.append(temp_filename)
+
+            self.debug('Running %s in %s', self.popen_args, self.popen_cwd)
+            try:
+                popen = subprocess.Popen(
+                    self.popen_args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=self.popen_cwd,
+                    env=self.popen_env,
+                    startupinfo=self.popen_startupinfo
+                )
+            except OSError as err:
+                # always show error in popup
+                msg = "You may need to install isort and/or configure 'isort_command' in PyYapf's Settings."
+                sublime.error_message("OSError: %s\n\n%s" % (err, msg))
+                return
+
+            encoded_stdout, encoded_stderr = popen.communicate()
+
+            if SUBLIME_3:
+                open_encoded = open
+            else:
+                import codecs
+                open_encoded = codecs.open
+
+            with open_encoded(temp_filename, encoding=self.encoding) as fp:
+                text = fp.read()
+        finally:
+            os.unlink(temp_filename)
+
+        self.debug('Exit code %d', popen.returncode)
+
+        self.view.replace(edit, selection, text)
+
+    
+    def debug(self, msg, *args):
+        """Logger that will be caught by sublimes ~ output screen."""
+        if self.get_setting('debug'):
+            print('PyYapf:', msg % args)
+
+    def error(self, msg, *args):
+        """Logger to make errors as obvious as we can make them."""
+        msg = msg % args
+
+        # add to status bar
+        self.errors.append(msg)
+        self.view.set_status(KEY, 'PyYapf: %s' % ', '.join(self.errors))
+        if self.get_setting('popup_errors'):
+            sublime.error_message(msg)
+
+    def get_setting(self, key, default_value=None):
+        """Wrapper to return a single setting."""
+        return get_setting(self.view, key, default_value)
+
+
+
 def is_python(view):
     """Cosmetic sugar."""
     return view.score_selector(0, 'source.python') > 0
@@ -490,6 +649,20 @@ class YapfDocumentCommand(sublime_plugin.TextCommand):
                 yapf.format(edit)
 
 
+class IsortDocumentCommand(sublime_plugin.TextCommand):
+    def is_enabled(self):
+        """
+        Only allow isort on python documents.
+        """
+        return is_python(self.view)
+
+    def run(self, edit):
+        """Sublime Text executes this when you trigger the TextCommand."""
+        with PreserveSelectionAndView(self.view):
+            with ISort(self.view) as isort:
+                isort.format(edit)        
+
+
 class EventListener(sublime_plugin.EventListener):
     """Hook in to detect when a file is saved."""
 
@@ -506,6 +679,18 @@ class EventListener(sublime_plugin.EventListener):
                         return
 
             view.run_command('yapf_document')
+
+        if get_setting(view, 'isort_on_save'):
+            if view.file_name() and get_setting(view, "isort_onsave_ignore_fn_glob"):
+                for pattern in get_setting(view, "isort_onsave_ignore_fn_glob"):
+                    if fnmatch.fnmatch(view.file_name(), pattern):
+                        print(
+                            'PyYapf: Skipping isort, matches pattern {}'.
+                            format(pattern)
+                        )
+                        return
+
+            view.run_command('isort_document')
 
 
 def get_setting(view, key, default_value=None):

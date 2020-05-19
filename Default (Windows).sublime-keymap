@@ -1,3 +1,4 @@
 [
-  { "keys": ["ctrl+alt+f"], "command": "yapf_selection" }
+  { "keys": ["ctrl+alt+f"], "command": "yapf_selection" },
+  { "keys": ["ctrl+alt+i"], "command": "isort_selection" }
 ]

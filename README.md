@@ -25,11 +25,21 @@ Alternatively, install manually by navigating to Sublime's `Packages` folder and
 
       git clone https://github.com/jason-kane/PyYapf.git "PyYapf Python Formatter"
 
+## isort
+
+[isort](https://github.com/timothycrosley/isort) is a nice little utility that sorts/formats your imports according to flexible criteria.  Yapf has clearly stated they do not intend to add import formatting. So..
+
+There is an existing isort package but it calls isort via pure python,  bakes a specific version of isort into its code and doesn't use isort configuration files.  It bothered me.
+
+So I baked an isort invoker into pyyapf.  It steals a gob of code from the yapf support and uses the same approach (ie: you have to `pip install isort` for it to work).  Ctrl-Alt-i and your imports are organized.  
+
+I left out the misfeature I put in pyyapf of baking config params into the sublime config.  Instead you can add an .isort.cfg to your root directory, check it into github (or whatever) and your whole team gets the same formatting.
+
 ## Problems?
 
 This makes it pretty easy to find valid python code that makes Yapf choke or give bad formatting.
 Please try to reduce any problems to a minimal example and [let the YAPF folks know](https://github.com/google/yapf/issues).
-If there is something wrong with this plugin, [add an issue](https://github.com/jason-kane/PyYapf/issues) on GitHub and I'll try to address it.
+If there is something wrong with this plugin, [add an issue](https://github.com/jason-kane/PyYapf/issues) on GitHub and I will try to address it.
 
 ## Distribution
 

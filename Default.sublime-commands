@@ -6,5 +6,9 @@
     {
         "caption": "PyYapf: Format Document",
         "command": "yapf_document"
-    }
+    },
+    {
+        "caption": "PyYapf: isort Imports",
+        "command": "isort_document"
+    },
 ]
