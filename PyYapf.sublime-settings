@@ -9,7 +9,7 @@
       "on_save": false,
 
       // ignore files matching glob(s)
-      "onsave_ignore_fn_glob": ["*.pyx", ],
+      "onsave_ignore_fn_glob": ["*.pyx"],
 
       // report errors in popup dialog (in addition to status bar)
       "popup_errors": false,

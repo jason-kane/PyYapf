@@ -202,10 +202,13 @@ class Yapf:
         # default to what is in the settings file
         cmd = self.get_setting("yapf_command")
         cmd = os.path.expanduser(cmd)
-        cmd = sublime.expand_variables(
-            cmd,
-            sublime.active_window().extract_variables()
-        )
+
+        # sublime 2.x support per https://github.com/jason-kane/PyYapf/issues/53
+        if hasattr(sublime, "expand_variables"):
+            cmd = sublime.expand_variables(
+                cmd,
+                sublime.active_window().extract_variables()
+            )
 
         save_settings = not cmd
 
